@@ -31,6 +31,18 @@ export ledger no_notional: Uint<64>;
 export ledger participants: Uint<16>;
 export ledger epoch: Uint<64>;
 
+// Sealing happens on the client, so the client needs to compute the same
+// commitment the circuit will later check against. This touches no ledger
+// state, which makes it a pure circuit: callable locally, no transaction,
+// no proof, no trip to the proof server.
+export circuit intent_commitment(
+  side: Boolean,
+  size: Uint<64>,
+  blind: Bytes<32>,
+): Bytes<32> {
+  return persistentCommit<Intent>(Intent { side: side, size: size }, blind);
+}
+
 // Seal an intent. The commitment is already opaque, so it goes on the ledger
 // as-is and the side and size stay with the user until the epoch closes.
 export circuit commit_intent(
