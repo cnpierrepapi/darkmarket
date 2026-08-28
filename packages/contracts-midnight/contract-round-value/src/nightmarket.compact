@@ -1,0 +1,70 @@
+pragma language_version >= 0.17;
+
+import CompactStandardLibrary;
+
+// NIGHTMARKET: a dark pool for prediction markets.
+//
+// A position size cannot be hidden by adding it to a public total one
+// transaction at a time. The block-to-block delta is the size. Privacy only
+// shows up once several intents are combined before anything is published,
+// so intents are sealed during an epoch and opened together in one call.
+//
+// Note that disclose() is an acknowledgement to the compiler, not an emission.
+// Only final ledger state reaches the chain. Five sizes added inside one
+// transaction leave two totals behind, and the addends are not recoverable.
+
+struct Intent {
+  side: Boolean,
+  size: Uint<64>,
+}
+
+export ledger round: Counter;
+export ledger market_id: Bytes<64>;
+
+// Sealed phase. A commitment says nothing about side or size.
+export ledger commitments: Set<Bytes<32>>;
+export ledger pending: Counter;
+
+// Open phase. The only numbers anyone outside ever sees.
+export ledger yes_notional: Uint<64>;
+export ledger no_notional: Uint<64>;
+export ledger participants: Uint<16>;
+export ledger epoch: Uint<64>;
+
+// Seal an intent. The commitment is already opaque, so it goes on the ledger
+// as-is and the side and size stay with the user until the epoch closes.
+export circuit commit_intent(
+  market_id_: Bytes<64>,
+  commitment_: Bytes<32>,
+): [] {
+  market_id = disclose(market_id_);
+  commitments.insert(disclose(commitment_));
+  pending.increment(1);
+  round.increment(1);
+}
+
+// Close the epoch. The floor is enforced here, in the circuit, not in a
+// README. Fewer than five sealed intents and this call will not prove.
+export circuit close_epoch(
+  sides: Vector<5, Boolean>,
+  sizes: Vector<5, Uint<64>>,
+  blinds: Vector<5, Bytes<32>>,
+): [] {
+  assert(!pending.lessThan(5), "epoch floor not met: fewer than 5 sealed intents");
+
+  for (const i of 0..5) {
+    const opening = Intent { side: sides[i], size: sizes[i] };
+    const c = persistentCommit<Intent>(opening, blinds[i]);
+    assert(commitments.member(c), "opening does not match any sealed intent");
+
+    if (disclose(sides[i])) {
+      yes_notional = (yes_notional + disclose(sizes[i])) as Uint<64>;
+    } else {
+      no_notional = (no_notional + disclose(sizes[i])) as Uint<64>;
+    }
+  }
+
+  participants = 5;
+  epoch = (epoch + 1) as Uint<64>;
+  round.increment(1);
+}
