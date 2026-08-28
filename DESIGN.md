@@ -1,77 +1,111 @@
-# THRESHOLD
+# DARKMARKET
 
-A gate you get through without showing why.
+A dark pool for prediction markets. You take a position on Polymarket without
+the market watching you take it.
 
-The idea is small. Somebody needs to prove they qualify for something. A loan, a rental,
-a whitelist, a payout tier. The thing checking them does not need the underlying numbers.
-It needs a yes. Today it takes the numbers anyway, because that is the only way anyone
-knows how to build it.
+Big trades have a tell. Put real size into a Polymarket book and the order sits
+there in public, and anyone can read your side, your size and roughly your
+conviction before you are filled. People trade against that. It is the oldest
+problem in markets and equities solved it decades ago with dark pools, where
+orders match away from the public book and only what fails to match gets sent out.
 
-So: the sensitive facts go into a Compact circuit on Midnight. The circuit runs the policy
-and discloses one verdict. An EVM chain acts on the verdict. The EVM side never sees an
-income figure, never sees a bank balance, never sees a repayment history. It sees a tier
-and an expiry date.
+Prediction markets never got that. DARKMARKET is that, with the matching done in
+zero knowledge on Midnight and the residual sent to Polymarket on Polygon.
 
-## Why this is a cross-chain build and not a Midnight build
+## The bit that took the longest to get right
 
-The template we start from says it better than we could:
+You cannot hide a size by adding it to a public total one transaction at a time.
+The delta between two blocks is the size. No amount of cryptography fixes it,
+and Compact's compiler will actually stop you: adding a secret to a public field
+is the exact thing `disclose` exists to make you admit out loud.
 
-> The join happens in the rollup, not on a bridge.
+Privacy only appears once several people's intents are combined before anything
+is published. So DARKMARKET works in epochs.
 
-There is no relayer here. No light client, no message-passing contract, no wrapped token.
-The two chains do not know about each other. They share one key, and an EffectStream sync
-node reads both and merges them into one table. That is the whole trick, and it is the
-reason this design is cheap enough to build in a weekend.
+During an epoch you seal an intent. What lands on Midnight's ledger is a
+commitment, which is noise. Nobody learns your side, your size, or whether you
+changed your mind.
 
-Midnight is the privacy engine. EVM is where the consequence lands. EffectStream is the
-thing in the middle that keeps a consistent view of both.
+Closing the epoch opens five intents at once, in a single call. The circuit
+proves each opening matches something that was sealed earlier, adds them up, and
+writes two numbers: total YES and total NO. That is all that survives.
 
-## The three pieces
+The reason the individual sizes do not leak here is worth stating plainly,
+because it looks wrong at first glance. `disclose()` is an acknowledgement to the
+compiler, not an emission. Nothing is broadcast when you call it. What reaches
+the chain is the final state of the ledger after the transaction, and the final
+state holds two totals. The five numbers that produced them are gone.
 
-The Compact circuit takes private inputs and writes a verdict to Midnight's public ledger.
-Whatever it writes through `disclose` is exactly what the outside world gets to see, so
-designing the circuit is the same job as designing the sync surface. Get greedy with
-`disclose` and you have leaked the thing you were protecting.
+## Crossing
 
-The state machine picks up that verdict off the Midnight ledger, keyed by subject, and
-folds it into Postgres alongside whatever the EVM side has been doing. Attestations
-accumulate here. The ledger holds the latest one, the rollup holds the history.
+Once an epoch closes with a YES total and a NO total, those two cancel each other
+before anything leaves.
 
-The EVM contract holds the gate. It reads a tier from a registry and lets an action
-through or does not.
+Say the epoch has 800 of YES and 300 of NO. The 300 crosses internally, both
+sides get their position, and Polymarket sees a single order for 500. Not eight
+orders. Not eleven. One, for the difference.
+
+An epoch that happens to balance sends nothing at all. Everyone gets filled
+against each other and the public tape never records that anything happened.
+That is the best case, and it costs the least, which is a rare combination.
+
+`shieldedFraction` puts a number on how much of an epoch never became public.
+It is the number that makes the argument.
+
+## The floor is in the circuit
+
+Five sealed intents minimum. Not a config value, not a check in the API layer,
+an `assert` inside `close_epoch`. An under-filled epoch does not produce a bad
+proof or a warning. It fails to prove at all, so there is no transaction to send.
+
+Hiding in a crowd requires a crowd. Enforcing that anywhere other than the circuit
+would mean asking people to trust that we did.
+
+## Where each chain sits
+
+Midnight is the privacy engine. It holds sealed intents and does the matching.
+
+Polygon is where the consequence lands, because that is where Polymarket lives
+and where a conditional token is real.
+
+EffectStream is in between. It reads both chains and merges them into one table.
+There is no bridge here, no relayer, no light client, and neither chain knows the
+other exists. They share a key and the rollup does the join. That is the template's
+own idea and it is the reason this is buildable in a weekend.
 
 ## The trust boundary, said out loud
 
-Here is the honest part, and we are putting it in the README too.
+An EVM contract cannot verify a Midnight proof today. No precompile for it.
 
-An EVM contract cannot verify a Midnight proof today. There is no precompile for it.
-So the verdict reaches EVM through an authorised submitter, which is the batcher's own
-funded wallet. That means the EVM gate trusts the rollup. It does not trust the user,
-and it never sees the private data, but it does trust that the submitter is reporting
-what the Midnight ledger actually says.
+So the closed epoch reaches Polymarket through an executor holding a funded
+wallet, and that executor could in principle report an aggregate that the Midnight
+ledger does not support. It never sees an individual intent, and it cannot forge
+the ZK proof, but it is trusted to relay honestly.
 
-That is a real assumption and pretending otherwise would be worse than having it. Anyone
-can check the submitter's claim by reading the Midnight ledger themselves, so the trust
-is auditable rather than blind. The upgrade path is proof verification on the EVM side
-once Midnight ships something to verify against.
+Anyone can check it. The aggregate is on Midnight's public ledger and the fill is
+on Polygon, so a lie is visible to anybody who reads both. That makes it auditable
+rather than blind, which is the honest description and not a great one. The fix is
+proof verification on the EVM side, once there is something there to verify against.
 
-## What we are deliberately not doing
+## What v1 leaves alone
 
-Not building a Map ledger in v1. The template uses flat ledger slots and the builtin
-`midnightGeneric` grammar knows how to parse those. A Map changes the payload shape and
-the grammar might not follow it. That is a fine thing to try on Sunday morning with a
-working demo already in the bag. It is a terrible thing to try on Friday night.
+No Map ledger. The template uses flat slots and the builtin `midnightGeneric`
+grammar knows how to read those. A Map changes the payload shape and the grammar
+may not follow. Good thing to try on Sunday with a working demo already recorded.
+Bad thing to try on Friday night.
 
-Not building a bridge. See above.
-
-Not reusing VIGIL, TENANT, or anything else. Everything in this repo past the baseline
-commit is written this weekend.
+Epoch size is fixed at five because Compact has no unbounded loops. Every circuit
+compiles to a fixed shape, so the opening loop has a hard count. Larger epochs
+mean a larger circuit, not a config change.
 
 ## Provenance
 
-Baseline is `effectstream/effectstream` branch `v-next` at `332503c`, template
-`templates/evm-midnight-v2`. It arrives with six things broken from a clean clone. Those
-are fixed here and reported upstream as effectstream/effectstream#895, where a maintainer
-confirmed a fix is coming. `patches/` holds them as a standalone patch.
+Starts from `effectstream/effectstream` branch `v-next` at `332503c`, template
+`templates/evm-midnight-v2`. It does not build from a clean clone. Six separate
+things are broken, from a pulled compiler pin to a proof-server binary whose ELF
+interpreter points into a Nix store that does not exist on Debian. All six are
+fixed here, kept in `patches/`, and reported upstream as
+effectstream/effectstream#895, where a maintainer confirmed a fix is on the way.
 
-The baseline commit is tagged as third-party scaffolding. `git log` after it is ours.
+The baseline commit is third-party scaffolding and is labelled as such. Everything
+after it is this weekend's.

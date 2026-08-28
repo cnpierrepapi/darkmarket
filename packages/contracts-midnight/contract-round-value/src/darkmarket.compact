@@ -2,7 +2,7 @@ pragma language_version >= 0.17;
 
 import CompactStandardLibrary;
 
-// NIGHTMARKET: a dark pool for prediction markets.
+// DARKMARKET: a dark pool for prediction markets.
 //
 // A position size cannot be hidden by adding it to a public total one
 // transaction at a time. The block-to-block delta is the size. Privacy only
