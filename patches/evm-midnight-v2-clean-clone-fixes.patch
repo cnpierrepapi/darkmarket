@@ -1,0 +1,110 @@
+diff --git a/templates/evm-midnight-v2/Dockerfile b/templates/evm-midnight-v2/Dockerfile
+index 6b72dff..a27de30 100644
+--- a/templates/evm-midnight-v2/Dockerfile
++++ b/templates/evm-midnight-v2/Dockerfile
+@@ -35,6 +35,9 @@ RUN curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compa
+ ENV PATH="/root/.local/bin:$PATH"
+ RUN which compact
+ RUN compact update 0.31.0
++# The contract script compiles with `compact compile +0.33.0-rc.2`, so that toolchain
++# must be present too or build:midnight fails with "Couldn't find compiler".
++RUN compact update 0.34.0
+ RUN compact --version
+ RUN compact compile --version
+ 
+@@ -55,6 +58,11 @@ RUN mkdir -p /root/.cache/hardhat-nodejs/compilers-v3/wasm && \
+       chmod +x /root/.cache/hardhat-nodejs/compilers-v3/linux-amd64/solc-linux-amd64-v0.8.30+commit.73712a01; \
+     fi
+ 
++# The npm-wrapped Midnight proof-server binary is Nix-built: its ELF interpreter is
++# hardcoded to a /nix/store glibc path absent on Debian, so posix_spawn fails with
++# ENOENT on a binary that is present. Point that path at Debian's own loader.
++RUN mkdir -p /nix/store/jms7zxzm7w1whczwny5m3gkgdjghmi2r-glibc-2.42-51/lib     && ln -sf /lib64/ld-linux-x86-64.so.2        /nix/store/jms7zxzm7w1whczwny5m3gkgdjghmi2r-glibc-2.42-51/lib/ld-linux-x86-64.so.2
++
+ WORKDIR /app
+ 
+ COPY . .
+diff --git a/templates/evm-midnight-v2/package.json b/templates/evm-midnight-v2/package.json
+index e803484..e43fad4 100644
+--- a/templates/evm-midnight-v2/package.json
++++ b/templates/evm-midnight-v2/package.json
+@@ -1,6 +1,9 @@
+ {
+   "private": true,
+-  "workspaces": ["packages/*", "packages/contracts-midnight/contract-round-value"],
++  "workspaces": [
++    "packages/*",
++    "packages/contracts-midnight/contract-round-value"
++  ],
+   "scripts": {
+     "dev": "NODE_ENV=development bunx orchestrator start",
+     "start:mainnet": "bun run packages/node/main.mainnet.ts",
+@@ -26,6 +29,7 @@
+   },
+   "overrides": {
+     "@effect/platform": "0.96.1",
+-    "@midnightntwrk/ledger-v9": "1.0.0-rc.3"
++    "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
++    "graphql": "16.14.2"
+   }
+ }
+diff --git a/templates/evm-midnight-v2/packages/contracts-midnight/contract-round-value/package.json b/templates/evm-midnight-v2/packages/contracts-midnight/contract-round-value/package.json
+index 5704994..d632c02 100644
+--- a/templates/evm-midnight-v2/packages/contracts-midnight/contract-round-value/package.json
++++ b/templates/evm-midnight-v2/packages/contracts-midnight/contract-round-value/package.json
+@@ -6,7 +6,7 @@
+     "./contract": "./src/managed/contract/index.js"
+   },
+   "scripts": {
+-    "compact": "compact compile +0.33.0-rc.2 src/counter.compact src/managed",
++    "compact": "compact compile +0.34.0 src/counter.compact src/managed",
+     "contract:compile": "bun run compact"
+   },
+   "dependencies": {
+diff --git a/templates/evm-midnight-v2/packages/contracts-midnight/package.json b/templates/evm-midnight-v2/packages/contracts-midnight/package.json
+index 27bfe62..ef1fefd 100644
+--- a/templates/evm-midnight-v2/packages/contracts-midnight/package.json
++++ b/templates/evm-midnight-v2/packages/contracts-midnight/package.json
+@@ -17,7 +17,7 @@
+     "@effectstream/npm-midnight-node": "0.200.1",
+     "@effectstream/npm-midnight-proof-server": "0.200.1",
+     "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
+-    "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
++    "@midnight-ntwrk/compact-runtime": "0.19.0",
+     "@midnight-ntwrk/compact-js": "2.5.5-rc.7",
+     "@midnightntwrk/onchain-runtime-v4": "4.0.0-rc.3"
+   }
+diff --git a/templates/evm-midnight-v2/packages/frontend/package.json b/templates/evm-midnight-v2/packages/frontend/package.json
+index c95fdbe..9284cb1 100644
+--- a/templates/evm-midnight-v2/packages/frontend/package.json
++++ b/templates/evm-midnight-v2/packages/frontend/package.json
+@@ -7,14 +7,14 @@
+   },
+   "scripts": {
+     "dev": "bunx vite --port 10598 --mode dev",
+-    "build": "bunx vite build --mode dev",
++    "build": "NODE_OPTIONS=--max-old-space-size=4096 bunx vite build --mode dev",
+     "build:dev": "bunx vite build --mode dev",
+     "build:mainnet": "bunx vite build --mode mainnet",
+     "server:start": "bun --watch run ./server/main.ts",
+     "serve": "bun run build && bun run server:start"
+   },
+   "dependencies": {
+-    "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
++    "@midnight-ntwrk/compact-runtime": "0.19.0",
+     "@midnight-ntwrk/compact-js": "2.5.5-rc.7",
+     "@midnight-ntwrk/dapp-connector-api": "4.0.1",
+     "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
+diff --git a/templates/evm-midnight-v2/packages/tests/package.json b/templates/evm-midnight-v2/packages/tests/package.json
+index d30a33b..df9c637 100644
+--- a/templates/evm-midnight-v2/packages/tests/package.json
++++ b/templates/evm-midnight-v2/packages/tests/package.json
+@@ -21,7 +21,7 @@
+     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "5.0.0-beta.6",
+     "@midnight-ntwrk/midnight-js-types": "5.0.0-beta.6",
+     "@midnight-ntwrk/midnight-js-utils": "5.0.0-beta.6",
+-    "@midnight-ntwrk/compact-runtime": "0.18.0-rc.1",
++    "@midnight-ntwrk/compact-runtime": "0.19.0",
+     "rxjs": "^7.8.2"
+   }
+ }
