@@ -1,0 +1,13 @@
+{
+  "name": "@nightmarket/executor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server.ts",
+    "test:netting": "bun test src/netting.test.ts"
+  },
+  "dependencies": {
+    "@polymarket/clob-client": "5.8.1",
+    "ethers": "5.7.2"
+  }
+}
