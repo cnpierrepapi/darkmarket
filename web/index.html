@@ -240,6 +240,10 @@
       </div>
     </div>
   </section>
+  <footer style="max-width:1120px;margin:0 auto;padding:0 24px 40px;color:#8b95a7;font-size:12px">
+    Contract <span id="fc">-</span> on Midnight preprod.
+    Source at <a href="https://github.com/cnpierrepapi/darkmarket">github.com/cnpierrepapi/darkmarket</a>.
+  </footer>
 </main>
 
 <script src="config.js"></script>
@@ -272,6 +276,7 @@ async function refresh(){
   try{
     var s = await api("/api/state");
     $("netTag").textContent = s.network;
+    try{ $("fc").textContent = s.contract.slice(0,12)+"..."+s.contract.slice(-6); }catch(e){}
     $("cc").textContent = s.contract.slice(0,10) + "..." + s.contract.slice(-6);
     $("cy").textContent = s.chain.yes;
     $("cn").textContent = s.chain.no;
