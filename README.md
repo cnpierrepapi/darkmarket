@@ -70,6 +70,18 @@ EffectStream sits between them, reads both, and merges them into one table.
 There is no bridge, no relayer, no light client, and neither chain knows the
 other exists. They share a key and the rollup does the join.
 
+## Live
+
+Front end: https://nightmarket.vercel.app
+
+Backend, which holds the five wallets and does the proving:
+https://darkmarket-231379770796.europe-west1.run.app
+
+The front end is static and deploys from this repo on every push. Everything
+that proves and submits runs behind the backend URL, because a wallet sync holds
+websockets open for minutes and proving needs a gigabyte of keys, and neither of
+those is a serverless function.
+
 ## Deployed
 
 Live on Midnight preprod:

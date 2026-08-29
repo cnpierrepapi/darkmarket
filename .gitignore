@@ -6,3 +6,6 @@ probe.ts
 # secrets, never commit
 .env.local
 .env
+
+.vercel
+.env*
