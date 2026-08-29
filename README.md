@@ -70,6 +70,24 @@ EffectStream sits between them, reads both, and merges them into one table.
 There is no bridge, no relayer, no light client, and neither chain knows the
 other exists. They share a key and the rollup does the join.
 
+## Deployed
+
+Live on Midnight preprod:
+
+```
+92a6d8c2f709b5df7c9e1c7370419d22e1dbabb764ca150ba754a14f38294d92
+```
+
+Read it yourself, no wallet needed, from the `stack-1x` branch:
+
+```
+MIDNIGHT_NETWORK_ID=preprod bun run packages/executor/src/ledger-read.ts   92a6d8c2f709b5df7c9e1c7370419d22e1dbabb764ca150ba754a14f38294d92
+```
+
+preprod runs midnight-node 1.x, which is why that address lives on `stack-1x`.
+The default branch targets node 2.x and its wallet sync cannot decode preprod's
+ledger events.
+
 ## What you can check yourself
 
 `packages/executor/src/ledger-read.ts` reads an epoch straight off the Midnight
