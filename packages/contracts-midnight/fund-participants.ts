@@ -14,7 +14,7 @@ import {
   midnightNetworkConfig,
 } from "@effectstream/midnight-contracts";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
-import { UnshieldedAddress } from "@midnightntwrk/wallet-sdk-address-format";
+import { UnshieldedAddress, MidnightBech32m } from "@midnightntwrk/wallet-sdk-address-format";
 import { allSeeds, readLocalEnv, PARTICIPANTS } from "./participants.ts";
 
 // Enough to register for dust and pay for a handful of transactions.
@@ -53,10 +53,18 @@ console.log("building participant 0 and waiting for its funds...");
 const payer = await buildWalletAndWaitForFunds(urls as never, seeds[0], networkId);
 console.log("participant 0 ready");
 
-const token = unshieldedToken();
+// unshieldedToken() is { tag: "unshielded", raw: "00..00" }. The transfer wants
+// the raw token type, not the tag.
+const token = unshieldedToken() as unknown as { tag: string; raw: string };
+
+// An address string has to be parsed out of bech32 first: the codec's decode
+// takes a parsed representation and a network, not the string.
+const decodeAddr = (bech: string) =>
+  MidnightBech32m.parse(bech).decode(UnshieldedAddress as never, networkId as never);
+
 const outputs = recipients.map((addr) => ({
-  type: token.tag ?? token,
-  receiverAddress: UnshieldedAddress.codec.decode(addr),
+  type: token.raw,
+  receiverAddress: decodeAddr(addr),
   amount: PER_PARTICIPANT,
 }));
 
