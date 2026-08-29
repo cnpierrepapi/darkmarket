@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DARKMARKET</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151d; --line:#1e2430; --ink:#e8ecf4;
+    --dim:#7d8799; --acc:#5b8cff; --yes:#3ddc97; --no:#ff6b6b; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{padding:20px 28px;border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:19px;letter-spacing:.15em}
+  .sub{color:var(--dim);font-size:12px;font-family:ui-monospace,monospace}
+  .tag{padding:3px 9px;border-radius:99px;font-size:11px;border:1px solid var(--line);
+    color:var(--dim);font-family:ui-monospace,monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 28px 60px}
+  .lede{color:var(--dim);max-width:640px;margin:0 0 26px}
+  h2{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;
+    margin:0 0 12px;font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:18px}
+  .p{display:flex;align-items:center;gap:11px;padding:9px 0}
+  .p + .p{border-top:1px solid var(--line)}
+  .dot{width:8px;height:8px;border-radius:99px;background:#3a4252;flex:none}
+  .dot.on{background:var(--yes)}
+  .addr{font-family:ui-monospace,monospace;font-size:12px;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .want{font-family:ui-monospace,monospace;font-size:12px;margin-left:auto;flex:none}
+  button.run{width:100%;margin-top:16px;padding:15px;border-radius:9px;border:0;
+    background:var(--acc);color:#fff;font-weight:600;font-size:15px;cursor:pointer}
+  button.run:disabled{opacity:.35;cursor:not-allowed}
+  .note{color:var(--dim);font-size:12px;margin-top:12px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0}
+  .row + .row{border-top:1px solid var(--line)}
+  .k{color:var(--dim);font-size:13px}
+  .v{font-family:ui-monospace,monospace;font-size:14px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .big{font-size:32px;font-family:ui-monospace,monospace}
+  .yes{color:var(--yes)} .no{color:var(--no)}
+  .bar{height:32px;border-radius:8px;overflow:hidden;display:flex;margin:13px 0 6px;
+    border:1px solid var(--line);background:#0d1017}
+  .bar div{display:flex;align-items:center;justify-content:center;font-size:12px;
+    font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden}
+  .crossed{background:rgba(91,140,255,.22);color:#a9c3ff}
+  .exposed{background:rgba(255,180,84,.22);color:#ffd39a}
+  .hero{font-size:48px;font-family:ui-monospace,monospace;line-height:1}
+  .log{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
+    background:#0d1017;border:1px solid var(--line);border-radius:8px;padding:12px;
+    height:210px;overflow:auto;white-space:pre-wrap}
+  .err{color:var(--no);font-size:12px;margin-top:10px;font-family:ui-monospace,monospace}
+  .stack{display:flex;flex-direction:column;gap:22px}
+</style>
+</head>
+<body>
+<header>
+  <h1>DARKMARKET</h1>
+  <span class="sub" id="meta">connecting...</span>
+  <span class="tag" id="netTag">-</span>
+</header>
+
+<div class="wrap">
+  <p class="lede">
+    A dark pool for prediction markets. Five funded Midnight wallets each seal a
+    position nobody can read. When the epoch closes, the chain learns two totals
+    and nothing else, and only what fails to match inside the pool reaches
+    Polymarket.
+  </p>
+
+  <div class="grid">
+    <div class="stack">
+      <div>
+        <h2>The five participants</h2>
+        <div class="card" id="pcard">
+          <div class="note">loading...</div>
+          <button class="run" id="run" disabled>Run the epoch</button>
+          <div class="note" id="runNote"></div>
+          <div class="err" id="runErr"></div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Live</h2>
+        <div class="card"><div class="log" id="log">waiting...</div></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div>
+        <h2>What the chain can see</h2>
+        <div class="card">
+          <div class="two">
+            <div><div class="k">YES total</div><div class="big yes" id="yes">0</div></div>
+            <div><div class="k">NO total</div><div class="big no" id="no">0</div></div>
+          </div>
+          <div class="row" style="margin-top:12px"><span class="k">participants</span>
+            <span class="v" id="parts">0</span></div>
+          <div class="row"><span class="k">sealed this epoch</span>
+            <span class="v" id="sealed">0</span></div>
+          <div class="row"><span class="k">epoch</span><span class="v" id="epoch">0</span></div>
+          <div class="row"><span class="k">contract</span><span class="v" id="contract">-</span></div>
+          <div class="note" id="chainNote"></div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Crossing</h2>
+        <div class="card">
+          <div class="bar" id="bar"><div class="crossed" style="flex:1">no epoch yet</div></div>
+          <div class="row"><span class="k">matched inside the pool</span>
+            <span class="v" id="crossed">0</span></div>
+          <div class="row"><span class="k">sent to Polymarket</span>
+            <span class="v" id="exposed">0</span></div>
+          <div style="margin-top:16px">
+            <div class="k">kept private</div>
+            <div class="hero" id="shielded">0<span style="font-size:22px">%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Polymarket</h2>
+        <div class="card" id="order"><div class="note">Close an epoch to see what leaks out.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+var API = (window.DARKMARKET_API || "").replace(/\/$/, "");
+function $(id){ return document.getElementById(id); }
+var WANT = ["YES 500","YES 200","NO 100","YES 100","NO 200"];
+
+async function api(path, opts){
+  var r = await fetch(API + path, opts);
+  return await r.json();
+}
+
+async function refresh(){
+  try{
+    var s = await api("/api/state");
+    $("meta").textContent = s.contract.slice(0,22) + "...";
+    $("netTag").textContent = s.network;
+    $("contract").textContent = s.contract.slice(0,10) + "..." + s.contract.slice(-6);
+    $("yes").textContent = s.chain.yes;
+    $("no").textContent = s.chain.no;
+    $("parts").textContent = s.chain.participants;
+    $("sealed").textContent = s.chain.sealed;
+    $("epoch").textContent = s.chain.epoch;
+
+    var ready = 0, html = "";
+    for (var i=0;i<s.participants.length;i++){
+      var p = s.participants[i];
+      if (p.ready) ready++;
+      html += '<div class="p"><span class="dot' + (p.ready ? " on" : "") + '"></span>' +
+              '<span class="addr">' + (p.address ? p.address : "participant " + i + " - not ready") + '</span>' +
+              '<span class="want">' + WANT[i] + '</span></div>';
+    }
+    $("pcard").innerHTML = html +
+      '<button class="run" id="run"' + ((ready === s.floor && !s.running && !s.booting) ? "" : " disabled") + '>' +
+      (s.running ? "running..." : "Run the epoch") + '</button>' +
+      '<div class="note" id="runNote">' +
+      (s.booting ? "Syncing wallets. A preprod sync takes about twenty minutes and all five run at once."
+        : ready === s.floor ? "All five funded and synced. One click seals five intents and closes the epoch."
+        : ready + " of " + s.floor + " wallets ready.") +
+      '</div><div class="err" id="runErr"></div>';
+    $("run").onclick = runEpoch;
+
+    var closed = Number(s.chain.yes) + Number(s.chain.no) > 0;
+    $("chainNote").textContent = closed
+      ? "Two totals. The five sizes that made them are not recoverable from this state."
+      : "During the sealed phase the ledger holds commitments and two zeros.";
+
+    var cr = Number(s.residual.crossed), ex = Number(s.residual.size);
+    $("crossed").textContent = cr;
+    $("exposed").textContent = ex ? ex + " " + s.residual.side : "0";
+    $("shielded").innerHTML = s.shielded.toFixed(2) + '<span style="font-size:22px">%</span>';
+    var tot = cr*2 + ex;
+    if (tot > 0){
+      var b = "";
+      if (cr > 0) b += '<div class="crossed" style="flex:' + (cr*2/tot*100) + '">matched - ' + (cr*2) + '</div>';
+      if (ex > 0) b += '<div class="exposed" style="flex:' + (ex/tot*100) + '">public - ' + ex + '</div>';
+      $("bar").innerHTML = b;
+    }
+
+    if (s.log && s.log.length){
+      var el = $("log");
+      var atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+      el.textContent = s.log.join("\n");
+      if (atBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    if (closed) loadOrder();
+  } catch(e){ $("meta").textContent = "backend unreachable"; }
+}
+
+async function loadOrder(){
+  try{
+    var r = await api("/api/order");
+    if (r.error){ $("order").innerHTML = '<div class="err">' + r.error + '</div>'; return; }
+    if (r.crossed){
+      $("order").innerHTML = '<div class="note">Fully crossed. Nothing reaches Polymarket at all.</div>';
+      return;
+    }
+    var o = r.order, m = r.market;
+    $("order").innerHTML =
+      '<div class="row"><span class="k">market</span><span class="v">' + m.slug.slice(0,42) + '...</span></div>' +
+      '<div class="row"><span class="k">buy</span><span class="v ' + (o.outcome === "YES" ? "yes":"no") + '">' + o.outcome + ' @ ' + o.price + '</span></div>' +
+      '<div class="row"><span class="k">size</span><span class="v">' + o.sizeUsdc + ' USDC - ~' + o.shares + ' shares</span></div>' +
+      '<div class="note">Live price from Polymarket. The order is computed, not signed.</div>';
+  } catch(e){}
+}
+
+async function runEpoch(){
+  $("runErr").textContent = "";
+  $("run").disabled = true; $("run").textContent = "running...";
+  try{
+    var r = await api("/api/run", { method:"POST" });
+    if (r.error) $("runErr").textContent = r.error;
+  } catch(e){ $("runErr").textContent = String(e); }
+  refresh();
+}
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>
