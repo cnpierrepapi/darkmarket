@@ -72,7 +72,7 @@ other exists. They share a key and the rollup does the join.
 
 ## Live
 
-Front end: https://nightmarket.vercel.app
+Front end: https://darkmarket-midnight.vercel.app
 
 Backend, which holds the five wallets and does the proving:
 https://darkmarket-231379770796.europe-west1.run.app
