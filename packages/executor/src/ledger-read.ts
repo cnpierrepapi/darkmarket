@@ -25,8 +25,9 @@ const INDEXER_WS = process.env.MIDNIGHT_INDEXER_WS ??
     ? "ws://127.0.0.1:8088/api/v4/graphql/ws"
     : `wss://indexer.${NETWORK}.midnight.network/api/v4/graphql/ws`);
 
-const decodeAscii = (b: Uint8Array): string =>
-  Buffer.from(b).toString("utf8").replace(/\0/g, "").trim();
+// conditionId comes back as raw bytes; render it the way Polymarket writes it.
+const toHex = (b: Uint8Array): string => "0x" + Buffer.from(b).toString("hex");
+const isZero = (b: Uint8Array): boolean => b.every((x) => x === 0);
 
 const contractAddress = process.argv[2] ?? (() => {
   const file = `./darkmarket.${NETWORK}.json`;
