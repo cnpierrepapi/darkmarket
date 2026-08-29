@@ -3,6 +3,7 @@ import { buildOrder, describeOrder, type Market } from "./polymarket.ts";
 import { netOff, type Aggregate } from "./netting.ts";
 
 const market: Market = {
+  conditionId: "0xa3b36b2d6104d34af4e6c6215fc818e43352e78a748fbfb0b85e3a35f71dec9a",
   slug: "fed-sept-2026",
   question: "Will there be no change in Fed interest rates?",
   yesTokenId: "5615282760875985231868508008056959876238536896643315063916840237042205273721",
@@ -12,7 +13,7 @@ const market: Market = {
 };
 
 const agg = (yes: bigint, no: bigint): Aggregate => ({
-  marketId: "fed-sept-2026", yesNotional: yes, noNotional: no, participants: 5, epoch: 1,
+  conditionId: "0xa3b36b2d6104d34af4e6c6215fc818e43352e78a748fbfb0b85e3a35f71dec9a", yesNotional: yes, noNotional: no, participants: 5, epoch: 1,
 });
 
 test("a crossed epoch produces no order at all", () => {

@@ -14,7 +14,7 @@ export async function executeEpoch(agg: Aggregate): Promise<void> {
   const residual = netOff(agg);
 
   console.log("--- epoch ---");
-  console.log(`market:       ${agg.marketId}`);
+  console.log(`condition:    ${agg.conditionId}`);
   console.log(`epoch:        ${agg.epoch}`);
   console.log(`participants: ${agg.participants}`);
   console.log(`YES / NO:     ${agg.yesNotional} / ${agg.noNotional}`);
@@ -26,7 +26,7 @@ export async function executeEpoch(agg: Aggregate): Promise<void> {
     return;
   }
 
-  const market = await resolveMarket(agg.marketId);
+  const market = await resolveMarket(agg.conditionId);
   const order = buildOrder(residual, market);
 
   console.log("--- order ---");
@@ -49,15 +49,15 @@ export async function executeEpoch(agg: Aggregate): Promise<void> {
   process.exit(1);
 }
 
-// CLI: execute.ts <marketSlug> <yesNotional> <noNotional> [participants] [epoch]
+// CLI: execute.ts <conditionId> <yesNotional> <noNotional> [participants] [epoch]
 if (import.meta.main) {
-  const [slug, yes, no, participants, epoch] = process.argv.slice(2);
-  if (!slug || yes === undefined || no === undefined) {
-    console.error("usage: execute.ts <marketSlug> <yesNotional> <noNotional> [participants] [epoch]");
+  const [conditionId, yes, no, participants, epoch] = process.argv.slice(2);
+  if (!conditionId || yes === undefined || no === undefined) {
+    console.error("usage: execute.ts <conditionId> <yesNotional> <noNotional> [participants] [epoch]");
     process.exit(1);
   }
   await executeEpoch({
-    marketId: slug,
+    conditionId,
     yesNotional: BigInt(yes),
     noNotional: BigInt(no),
     participants: Number(participants ?? 5),

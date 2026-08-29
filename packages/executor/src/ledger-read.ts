@@ -53,7 +53,7 @@ if (!state) {
 const l = Contract.ledger(state.data);
 
 const agg: Aggregate = {
-  marketId: decodeAscii(l.market_id),
+  conditionId: isZero(l.condition_id) ? "" : toHex(l.condition_id),
   yesNotional: l.yes_notional,
   noNotional: l.no_notional,
   participants: Number(l.participants),
@@ -64,7 +64,7 @@ console.log(`network:  ${NETWORK}`);
 console.log(`contract: ${contractAddress}`);
 console.log("");
 console.log("--- everything the chain reveals ---");
-console.log(`market:        ${agg.marketId || "(unset)"}`);
+console.log(`condition id:  ${agg.conditionId || "(unset)"}`);
 console.log(`epoch:         ${agg.epoch}`);
 console.log(`sealed so far: ${l.pending}`);
 console.log(`participants:  ${agg.participants}`);

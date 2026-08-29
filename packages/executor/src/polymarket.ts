@@ -12,6 +12,7 @@ import type { Residual } from "./netting.ts";
 const GAMMA = "https://gamma-api.polymarket.com";
 
 export type Market = {
+  conditionId: string;
   slug: string;
   question: string;
   yesTokenId: string;
@@ -29,20 +30,30 @@ export type Order = {
   sizeUsdc: number;
   shares: number;
   market: string;
+  conditionId: string;
 };
 
-export async function resolveMarket(slug: string): Promise<Market> {
-  const res = await fetch(`${GAMMA}/markets?slug=${encodeURIComponent(slug)}`);
-  if (!res.ok) throw new Error(`gamma ${res.status} for slug ${slug}`);
+// Look markets up by conditionId, which is what the chain stores.
+//
+// The query parameter is `condition_ids`. Note that `conditionId` is NOT
+// rejected by the API, it is silently ignored, and you get back an unrelated
+// market with a straight face. That is a genuinely nasty way to lose an hour.
+export async function resolveMarket(conditionId: string): Promise<Market> {
+  const res = await fetch(`${GAMMA}/markets?condition_ids=${encodeURIComponent(conditionId)}`);
+  if (!res.ok) throw new Error(`gamma ${res.status} for condition ${conditionId}`);
   const rows = (await res.json()) as any[];
   const m = rows?.[0];
-  if (!m) throw new Error(`no market found for slug ${slug}`);
+  if (!m) throw new Error(`no market found for conditionId ${conditionId}`);
+  if (m.conditionId && m.conditionId.toLowerCase() !== conditionId.toLowerCase()) {
+    throw new Error(`gamma returned ${m.conditionId} for ${conditionId}; refusing to trade the wrong market`);
+  }
 
   const tokenIds = JSON.parse(m.clobTokenIds ?? "[]") as string[];
   const prices = (JSON.parse(m.outcomePrices ?? "[]") as string[]).map(Number);
   if (tokenIds.length < 2) throw new Error(`market ${slug} has no clob token ids`);
 
   return {
+    conditionId: m.conditionId,
     slug: m.slug,
     question: m.question,
     yesTokenId: tokenIds[0],
@@ -70,6 +81,7 @@ export function buildOrder(residual: Residual, market: Market): Order | null {
     // shares you get for the notional at that probability
     shares: price > 0 ? Number((sizeUsdc / price).toFixed(2)) : 0,
     market: market.slug,
+    conditionId: market.conditionId,
   };
 }
 
@@ -79,6 +91,7 @@ export function describeOrder(order: Order | null, residual: Residual): string {
   }
   return [
     `market:  ${order.market}`,
+    `id:      ${order.conditionId}`,
     `buy:     ${order.outcome} @ ${order.price}`,
     `size:    ${order.sizeUsdc} USDC  (~${order.shares} shares)`,
     `token:   ${order.tokenId.slice(0, 18)}...`,

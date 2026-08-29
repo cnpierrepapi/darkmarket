@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { netOff, shieldedFraction, type Aggregate } from "./netting.ts";
 
 const agg = (yes: bigint, no: bigint): Aggregate => ({
-  marketId: "fed-sept-2026",
+  conditionId: "0xa3b36b2d6104d34af4e6c6215fc818e43352e78a748fbfb0b85e3a35f71dec9a",
   yesNotional: yes,
   noNotional: no,
   participants: 5,

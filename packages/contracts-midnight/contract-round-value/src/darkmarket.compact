@@ -19,7 +19,11 @@ struct Intent {
 }
 
 export ledger round: Counter;
-export ledger market_id: Bytes<64>;
+// Polymarket's conditionId: the same 32 bytes its conditional-token contract
+// uses on Polygon. A human-readable slug does not fit in a fixed-width field
+// (they run past 80 characters and get silently truncated), and the condition
+// id is the better key anyway, since it is what both chains actually agree on.
+export ledger condition_id: Bytes<32>;
 
 // Sealed phase. A commitment says nothing about side or size.
 export ledger commitments: Set<Bytes<32>>;
@@ -46,10 +50,10 @@ export circuit intent_commitment(
 // Seal an intent. The commitment is already opaque, so it goes on the ledger
 // as-is and the side and size stay with the user until the epoch closes.
 export circuit commit_intent(
-  market_id_: Bytes<64>,
+  condition_id_: Bytes<32>,
   commitment_: Bytes<32>,
 ): [] {
-  market_id = disclose(market_id_);
+  condition_id = disclose(condition_id_);
   commitments.insert(disclose(commitment_));
   pending.increment(1);
   round.increment(1);

@@ -9,7 +9,7 @@
 // is the strongest privacy case and also the cheapest one.
 
 export type Aggregate = {
-  marketId: string;
+  conditionId: string;
   yesNotional: bigint;
   noNotional: bigint;
   participants: number;
@@ -17,10 +17,10 @@ export type Aggregate = {
 };
 
 export type Residual =
-  | { kind: "crossed"; marketId: string; crossed: bigint; epoch: number }
+  | { kind: "crossed"; conditionId: string; crossed: bigint; epoch: number }
   | {
       kind: "residual";
-      marketId: string;
+      conditionId: string;
       side: "YES" | "NO";
       size: bigint;
       crossed: bigint;
@@ -32,13 +32,13 @@ export function netOff(agg: Aggregate): Residual {
   const crossed = yes < no ? yes : no;
 
   if (yes === no) {
-    return { kind: "crossed", marketId: agg.marketId, crossed, epoch: agg.epoch };
+    return { kind: "crossed", conditionId: agg.conditionId, crossed, epoch: agg.epoch };
   }
 
   const side = yes > no ? "YES" : "NO";
   const size = yes > no ? yes - no : no - yes;
 
-  return { kind: "residual", marketId: agg.marketId, side, size, crossed, epoch: agg.epoch };
+  return { kind: "residual", conditionId: agg.conditionId, side, size, crossed, epoch: agg.epoch };
 }
 
 // How much of the epoch never became public, as a percentage of what was
