@@ -15,13 +15,14 @@ import {
 } from "@effectstream/midnight-contracts";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import { UnshieldedAddress, MidnightBech32m } from "@midnightntwrk/wallet-sdk-address-format";
-import { allSeeds, readLocalEnv, PARTICIPANTS } from "./participants.ts";
+import { allSeeds, allSeedsFromMaster, readLocalEnv, PARTICIPANTS } from "./participants.ts";
 
 // Enough to register for dust and pay for a handful of transactions.
 const PER_PARTICIPANT = BigInt(process.env.DARKMARKET_FUND_EACH ?? "150000000");
 
+const isLocal = (process.env.MIDNIGHT_NETWORK_ID ?? "preprod") === "undeployed";
 const mnemonic = readLocalEnv("MIDNIGHT_WALLET_MNEMONIC");
-if (!mnemonic) {
+if (!mnemonic && !isLocal) {
   console.error("no MIDNIGHT_WALLET_MNEMONIC");
   process.exit(1);
 }
@@ -35,7 +36,7 @@ const urls = {
   node: net.node,
   proofServer: net.proofServer,
 };
-const seeds = allSeeds(mnemonic);
+const seeds = isLocal ? allSeedsFromMaster(net.walletSeed!) : allSeeds(mnemonic!);
 
 // Recipient addresses first, cheaply, without waiting for anyone to sync.
 const recipients: string[] = [];

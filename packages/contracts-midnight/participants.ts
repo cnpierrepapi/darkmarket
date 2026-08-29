@@ -55,6 +55,16 @@ export const allSeeds = (mnemonic: string): string[] => {
   return Array.from({ length: PARTICIPANTS }, (_, i) => participantSeed(m, i));
 };
 
+/**
+ * Same derivation, but from a raw hex seed rather than a mnemonic. The local
+ * chain funds a fixed genesis wallet instead of a phrase, so participant 0 has
+ * to be that wallet or nobody can pay for anything.
+ */
+export const allSeedsFromMaster = (masterHex: string): string[] => {
+  const m = Buffer.from(masterHex.replace(/^0x/, ""), "hex");
+  return Array.from({ length: PARTICIPANTS }, (_, i) => participantSeed(m, i));
+};
+
 /** What each participant wants. Sums to 800 YES and 300 NO. */
 export const INTENTS = [
   { side: true, size: 500n },

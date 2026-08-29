@@ -18,17 +18,21 @@ import {
   buildWalletFacade,
   waitForDustFunds,
   registerNightForDust,
+  suspendAuxWalletSyncForFees,
   configureMidnightNodeProviders,
   readMidnightContract,
   midnightNetworkConfig,
 } from "@effectstream/midnight-contracts";
 import { findDeployedContract } from "@midnight-ntwrk/midnight-js-contracts";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
+import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
+import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
+import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import * as Contract from "@evm-midnight/midnight-contract/contract";
 import { netOff, shieldedFraction, type Aggregate } from "./netting.ts";
 import { resolveMarket, buildOrder } from "./polymarket.ts";
-import { allSeeds, readLocalEnv, PARTICIPANTS, INTENTS } from "./participants.ts";
+import { allSeeds, allSeedsFromMaster, readLocalEnv, PARTICIPANTS, INTENTS } from "./participants.ts";
 
 const NETWORK = process.env.MIDNIGHT_NETWORK_ID ?? "preprod";
 const PORT = Number(process.env.PORT ?? 8080);
@@ -67,8 +71,11 @@ const address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT ?? (() => {
 })();
 if (!address) throw new Error("no contract address: pass one as an argument or set DARKMARKET_CONTRACT");
 
+// Local runs off the chain's own genesis wallet; a real network runs off the
+// mnemonic. Participant 0 has to be whichever one actually holds funds.
+const isLocal = NETWORK === "undeployed";
 const mnemonic = readLocalEnv("MIDNIGHT_WALLET_MNEMONIC");
-if (!mnemonic) throw new Error("no MIDNIGHT_WALLET_MNEMONIC");
+if (!mnemonic && !isLocal) throw new Error("no MIDNIGHT_WALLET_MNEMONIC");
 
 const net = midnightNetworkConfig;
 const urls = {
@@ -79,7 +86,7 @@ const urls = {
 // there first and only fall back to the search.
 const zkConfigPath = process.env.DARKMARKET_ZK_CONFIG ??
   "/app/packages/contracts-midnight/contract-round-value/src/managed";
-const seeds = allSeeds(mnemonic);
+const seeds = isLocal ? allSeedsFromMaster(net.walletSeed!) : allSeeds(mnemonic!);
 
 const participants: (Participant | undefined)[] = new Array(PARTICIPANTS).fill(undefined);
 const readyCount = () => participants.filter(Boolean).length;
@@ -94,16 +101,32 @@ let running = false;
 // The sync also dies silently: the process stays alive and the stream simply
 // stops. So each wallet gets its own retries rather than one failure taking
 // the whole demo down.
+const ownPrivateState = (index: number, coinPublicKey: Uint8Array) =>
+  levelPrivateStateProvider({
+    midnightDbName: `midnight-level-db-p${index}`,
+    privateStateStoreName: `darkmarket-p${index}`,
+    signingKeyStoreName: `darkmarket-p${index}-keys`,
+    privateStoragePasswordProvider: async () =>
+      process.env.MIDNIGHT_STORAGE_PASSWORD ?? "DarkMarketSeal1!",
+    accountId: Buffer.from(coinPublicKey).toString("hex"),
+  } as never);
+
 const BOOT_ATTEMPTS = Number(process.env.DARKMARKET_BOOT_ATTEMPTS ?? "4");
 
 const bootOne = async (i: number): Promise<void> => {
+  // Stagger the starts. Five wallets opening databases in the same instant is
+  // how the lock conflicts happened in the first place.
+  await new Promise((r) => setTimeout(r, i * 2500));
+
   for (let attempt = 1; attempt <= BOOT_ATTEMPTS; attempt++) {
     try {
       say(`participant ${i}: building wallet (attempt ${attempt})`);
-      // dust-only: a participant seals and pays a fee, so it needs dust and
-      // nothing else. The shielded scan is the slow half of a preprod sync and
-      // this skips it, along with the indexer connections it would hold open.
-      const w = await buildWalletFacade(urls as never, seeds[i], NETWORK as never, "dust-only");
+      // dust-only skips the slow shielded scan, but it also stops the
+      // unshielded wallet, and registerNightForDust waits for unshielded sync
+      // to complete. So it can only be used where registration is already done.
+      // Local syncs in about half a minute, so it just uses the full mode.
+      const syncMode = process.env.DARKMARKET_SYNC_MODE ?? (isLocal ? "all" : "all");
+      const w = await buildWalletFacade(urls as never, seeds[i], NETWORK as never, syncMode as never);
       say(`participant ${i}: waiting for dust`);
       try {
         await registerNightForDust(w);
@@ -120,12 +143,31 @@ const bootOne = async (i: number): Promise<void> => {
         CompiledContract.withWitnesses({} as never),
         CompiledContract.withCompiledFileAssets("./"),
       );
-      const contract = await findDeployedContract(providers, {
+      // Swap in a private state store of this participant's own before joining.
+      const own = {
+        ...(providers as Record<string, unknown>),
+        privateStateProvider: ownPrivateState(i, w.zswapSecretKeys.coinPublicKey as never),
+      } as never;
+
+      const contract = await findDeployedContract(own, {
         contractAddress: address,
         compiledContract: compiled as never,
         privateStateId: `darkmarket-p${i}`,
         initialPrivateState: {},
       });
+      // Once a wallet is ready it does not need to keep scanning. Five wallets
+      // all syncing in one process starve the proving of CPU: the first seal
+      // took fifteen seconds and the second was still going a quarter of an
+      // hour later, at 180% CPU. Suspending the auxiliary streams leaves each
+      // wallet able to pay fees and nothing else, which is all a participant
+      // needs to seal.
+      try {
+        await suspendAuxWalletSyncForFees(w.wallet as never);
+        say(`participant ${i}: sync suspended, fees only`);
+      } catch (e: unknown) {
+        say(`participant ${i}: could not suspend sync, ${String((e as Error)?.message ?? e).slice(0, 80)}`);
+      }
+
       participants[i] = {
         index: i, address: w.unshieldedAddress, dustAddress: w.dustAddress,
         contract, ready: true,
@@ -136,6 +178,8 @@ const bootOne = async (i: number): Promise<void> => {
       const msg = String((e as Error)?.message ?? e).slice(0, 200);
       say(`participant ${i}: attempt ${attempt} failed, ${msg}`);
       bootError = msg;
+      // Back off before retrying: an instant retry hits the same lock.
+      await new Promise((r) => setTimeout(r, 4000 * attempt));
     }
   }
   say(`participant ${i}: gave up after ${BOOT_ATTEMPTS} attempts`);
@@ -168,6 +212,16 @@ const readChain = async () => {
   };
 };
 
+// Each participant needs its OWN LevelDB.
+//
+// configureMidnightNodeProviders hardcodes midnightDbName to
+// "midnight-level-db-deploy", so five wallets end up fighting over one database
+// and all but the first fail with "Database failed to open". The SDK's own
+// comment notes it separated the deploy DB for exactly this reason; it just did
+// not go far enough for five concurrent wallets.
+//
+// It also notes that transaction submission needs far less than a deploy does,
+// which is all a participant ever does.
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json", "access-control-allow-origin": "*" } });
 
