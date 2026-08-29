@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DARKMARKET</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151d; --line:#1e2430; --ink:#e8ecf4;
+    --dim:#7d8799; --acc:#5b8cff; --yes:#3ddc97; --no:#ff6b6b; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;
+    align-items:baseline;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px;letter-spacing:.14em}
+  .sub{color:var(--dim);font-size:12px;font-family:ui-monospace,monospace}
+  main{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 68px)}
+  .left{border-right:1px solid var(--line);padding:24px}
+  .right{padding:24px;display:flex;flex-direction:column;gap:20px}
+  h2{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;
+    margin:0 0 12px;font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .sides{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .side{padding:12px;border-radius:8px;border:1px solid var(--line);background:transparent;
+    color:var(--dim);cursor:pointer;font-weight:600;font-size:14px}
+  .side.on[data-s="yes"]{border-color:var(--yes);color:var(--yes);background:rgba(61,220,151,.08)}
+  .side.on[data-s="no"]{border-color:var(--no);color:var(--no);background:rgba(255,107,107,.08)}
+  input{width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);
+    background:#0d1017;color:var(--ink);font-size:16px;font-family:ui-monospace,monospace}
+  button.go{width:100%;margin-top:14px;padding:13px;border-radius:8px;border:0;
+    background:var(--acc);color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+  button.go:disabled{opacity:.35;cursor:not-allowed}
+  button.close{background:var(--warn);color:#1a1200}
+  .note{color:var(--dim);font-size:12px;margin-top:12px;line-height:1.5}
+  .row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0}
+  .row + .row{border-top:1px solid var(--line)}
+  .k{color:var(--dim);font-size:13px}
+  .v{font-family:ui-monospace,monospace;font-size:14px}
+  .commits{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+  .commit{font-family:ui-monospace,monospace;font-size:11px;color:var(--dim);
+    background:#0d1017;border:1px solid var(--line);border-radius:6px;padding:8px 10px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .big{font-size:34px;font-family:ui-monospace,monospace;letter-spacing:-.02em}
+  .yes{color:var(--yes)} .no{color:var(--no)}
+  .bar{height:34px;border-radius:8px;overflow:hidden;display:flex;margin:14px 0 8px;
+    border:1px solid var(--line);background:#0d1017}
+  .bar div{display:flex;align-items:center;justify-content:center;font-size:12px;
+    font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden}
+  .crossed{background:rgba(91,140,255,.22);color:#a9c3ff}
+  .exposed{background:rgba(255,180,84,.22);color:#ffd39a}
+  .hero{font-size:52px;font-family:ui-monospace,monospace;letter-spacing:-.03em;line-height:1}
+  .err{color:var(--no);font-size:12px;margin-top:10px;font-family:ui-monospace,monospace}
+  .ok{color:var(--yes)}
+  .muted{opacity:.45}
+</style>
+</head>
+<body>
+<header>
+  <h1>DARKMARKET</h1>
+  <span class="sub" id="meta">connecting...</span>
+</header>
+
+<main>
+  <section class="left">
+    <h2>Your intent</h2>
+    <div class="card">
+      <div class="sides">
+        <button class="side on" data-s="yes" id="bYes">YES</button>
+        <button class="side" data-s="no" id="bNo">NO</button>
+      </div>
+      <input id="size" type="number" min="1" value="500" placeholder="size in USDC">
+      <button class="go" id="seal">Seal this intent</button>
+      <div class="note">
+        Your side and size stay in this process. What goes on chain is a
+        commitment: 32 bytes that reveal nothing and cannot be worked backwards.
+      </div>
+      <div class="err" id="sealErr"></div>
+    </div>
+
+    <h2 style="margin-top:26px">Sealed this epoch</h2>
+    <div class="card">
+      <div class="row"><span class="k">sealed</span>
+        <span class="v" id="sealedCount">0 / 5</span></div>
+      <div class="commits" id="commits"></div>
+      <button class="go close" id="close" disabled>Close the epoch</button>
+      <div class="note" id="floorNote">
+        The five-intent floor is an assert inside the circuit. Below it, the
+        proof cannot be produced at all, so there is no transaction to send.
+      </div>
+      <div class="err" id="closeErr"></div>
+    </div>
+  </section>
+
+  <section class="right">
+    <div>
+      <h2>What the chain can see</h2>
+      <div class="card">
+        <div class="two">
+          <div>
+            <div class="k">YES total</div>
+            <div class="big yes" id="yesTotal">0</div>
+          </div>
+          <div>
+            <div class="k">NO total</div>
+            <div class="big no" id="noTotal">0</div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:14px"><span class="k">participants</span>
+          <span class="v" id="participants">0</span></div>
+        <div class="row"><span class="k">epoch</span><span class="v" id="epoch">0</span></div>
+        <div class="row"><span class="k">condition id</span>
+          <span class="v" id="cond">-</span></div>
+        <div class="note" id="chainNote">
+          Nothing yet. During the sealed phase the ledger holds commitments and
+          two zeros.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h2>Crossing</h2>
+      <div class="card">
+        <div class="bar" id="bar"><div class="crossed" style="flex:1">waiting for an epoch</div></div>
+        <div class="row"><span class="k">matched inside the pool</span>
+          <span class="v" id="crossed">0</span></div>
+        <div class="row"><span class="k">sent to Polymarket</span>
+          <span class="v" id="exposed">0</span></div>
+        <div style="margin-top:18px">
+          <div class="k">kept private</div>
+          <div class="hero" id="shielded">0<span style="font-size:24px">%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h2>Polymarket</h2>
+      <div class="card" id="orderCard">
+        <div class="note">No order yet. Close an epoch to see what leaks out.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+var side = true;
+function $(id){ return document.getElementById(id); }
+
+$("bYes").onclick = function(){ side = true; $("bYes").classList.add("on"); $("bNo").classList.remove("on"); };
+$("bNo").onclick  = function(){ side = false; $("bNo").classList.add("on"); $("bYes").classList.remove("on"); };
+
+async function refresh(){
+  try{
+    var s = await (await fetch("/api/state")).json();
+    $("meta").textContent = s.network + " - " + s.contract.slice(0,20) + "...";
+    $("sealedCount").textContent = s.chain.sealed + " / " + s.floor;
+    $("yesTotal").textContent = s.chain.yes;
+    $("noTotal").textContent = s.chain.no;
+    $("participants").textContent = s.chain.participants;
+    $("epoch").textContent = s.chain.epoch;
+    $("cond").textContent = s.chain.conditionId
+      ? s.chain.conditionId.slice(0,12) + "..." + s.chain.conditionId.slice(-6) : "-";
+
+    var list = "";
+    if (s.localCommitments.length) {
+      for (var i=0;i<s.localCommitments.length;i++){
+        list += '<div class="commit">' + s.localCommitments[i] + '</div>';
+      }
+    } else {
+      list = '<div class="commit muted">nothing sealed yet</div>';
+    }
+    $("commits").innerHTML = list;
+
+    $("close").disabled = !(s.chain.sealed >= s.floor && !s.busy);
+    $("floorNote").textContent = s.chain.sealed >= s.floor
+      ? "Floor met. Closing opens all five in one transaction."
+      : "The five-intent floor is an assert inside the circuit. Below it the proof cannot be produced at all, so there is no transaction to send.";
+
+    var closed = Number(s.chain.yes) + Number(s.chain.no) > 0;
+    $("chainNote").textContent = closed
+      ? "Two totals. The individual sizes that made them are not recoverable from this state."
+      : "Nothing yet. During the sealed phase the ledger holds commitments and two zeros.";
+
+    var crossed = Number(s.residual.crossed), exposed = Number(s.residual.size);
+    $("crossed").textContent = crossed;
+    $("exposed").textContent = exposed ? exposed + " " + s.residual.side : "0";
+    $("shielded").innerHTML = s.shielded.toFixed(2) + '<span style="font-size:24px">%</span>';
+
+    var total = crossed*2 + exposed;
+    if (total > 0){
+      var cw = (crossed*2/total)*100, ew = (exposed/total)*100;
+      var bar = "";
+      if (cw > 0) bar += '<div class="crossed" style="flex:' + cw + '">matched internally - ' + (crossed*2) + '</div>';
+      if (ew > 0) bar += '<div class="exposed" style="flex:' + ew + '">public - ' + exposed + '</div>';
+      $("bar").innerHTML = bar;
+    }
+
+    if (closed) loadOrder();
+  } catch(e){ $("meta").textContent = "server not reachable"; }
+}
+
+async function loadOrder(){
+  try{
+    var r = await (await fetch("/api/order")).json();
+    if (r.error){ $("orderCard").innerHTML = '<div class="err">' + r.error + '</div>'; return; }
+    if (r.crossed){
+      $("orderCard").innerHTML = '<div class="note ok">Fully crossed. Nothing reaches Polymarket at all.</div>';
+      return;
+    }
+    var o = r.order, m = r.market;
+    $("orderCard").innerHTML =
+      '<div class="row"><span class="k">market</span><span class="v">' + m.slug.slice(0,46) + '...</span></div>' +
+      '<div class="row"><span class="k">buy</span><span class="v ' + (o.outcome === "YES" ? "yes" : "no") + '">' + o.outcome + ' @ ' + o.price + '</span></div>' +
+      '<div class="row"><span class="k">size</span><span class="v">' + o.sizeUsdc + ' USDC - ~' + o.shares + ' shares</span></div>' +
+      '<div class="row"><span class="k">token</span><span class="v">' + o.tokenId.slice(0,18) + '...</span></div>' +
+      '<div class="note">Live price from Polymarket. The order is computed, not signed: live placement needs a funded key.</div>';
+  } catch(e){}
+}
+
+$("seal").onclick = async function(){
+  $("sealErr").textContent = ""; $("seal").disabled = true;
+  $("seal").textContent = "sealing, proving...";
+  try{
+    var r = await (await fetch("/api/seal", {
+      method:"POST", headers:{"content-type":"application/json"},
+      body: JSON.stringify({ side: side, size: Number($("size").value) })
+    })).json();
+    if (r.error) $("sealErr").textContent = r.error;
+  } catch(e){ $("sealErr").textContent = String(e); }
+  $("seal").disabled = false; $("seal").textContent = "Seal this intent";
+  refresh();
+};
+
+$("close").onclick = async function(){
+  $("closeErr").textContent = ""; $("close").disabled = true;
+  $("close").textContent = "proving five openings...";
+  try{
+    var r = await (await fetch("/api/close", { method:"POST" })).json();
+    if (r.error) $("closeErr").textContent = r.error;
+  } catch(e){ $("closeErr").textContent = String(e); }
+  $("close").textContent = "Close the epoch";
+  refresh();
+};
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>
