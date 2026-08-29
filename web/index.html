@@ -6,185 +6,311 @@
 <title>DARKMARKET</title>
 <style>
   :root{
-    --bg:#0b0d12; --panel:#12151d; --line:#1e2430; --ink:#e8ecf4;
-    --dim:#7d8799; --acc:#5b8cff; --yes:#3ddc97; --no:#ff6b6b; --warn:#ffb454;
+    --bg:#0d1017; --panel:#141922; --panel2:#1a202b; --line:#232b38;
+    --ink:#eef2f8; --dim:#8b95a7; --acc:#2d7ff9;
+    --yes:#27ae8a; --yes-bg:rgba(39,174,138,.14);
+    --no:#e0525f; --no-bg:rgba(224,82,95,.14);
+    --warn:#f0a63a;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-  header{padding:20px 28px;border-bottom:1px solid var(--line);
-    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-  h1{margin:0;font-size:19px;letter-spacing:.15em}
-  .sub{color:var(--dim);font-size:12px;font-family:ui-monospace,monospace}
-  .tag{padding:3px 9px;border-radius:99px;font-size:11px;border:1px solid var(--line);
-    color:var(--dim);font-family:ui-monospace,monospace}
-  .wrap{max-width:1180px;margin:0 auto;padding:24px 28px 60px}
-  .lede{color:var(--dim);max-width:640px;margin:0 0 26px}
-  h2{font-size:11px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;
+    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif}
+  a{color:inherit}
+  header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:9}
+  .bar{max-width:1120px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:18px}
+  .logo{font-size:17px;letter-spacing:.16em;font-weight:700}
+  .badge{padding:3px 8px;border-radius:5px;font-size:10.5px;letter-spacing:.09em;
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    font-family:ui-monospace,monospace}
+  nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+  nav button{background:none;border:0;color:var(--dim);padding:8px 13px;border-radius:7px;
+    cursor:pointer;font-size:13.5px;font-weight:500}
+  nav button.on{background:var(--panel2);color:var(--ink)}
+  main{max-width:1120px;margin:0 auto;padding:26px 24px 70px}
+  .tab{display:none}
+  .tab.on{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+  h2{font-size:11px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;
     margin:0 0 12px;font-weight:600}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
-  @media(max-width:900px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:18px}
-  .p{display:flex;align-items:center;gap:11px;padding:9px 0}
+  .lede{color:var(--dim);max-width:660px;margin:0 0 22px}
+
+  /* market */
+  .mkt{display:grid;grid-template-columns:1fr 330px;gap:22px;align-items:start}
+  @media(max-width:880px){.mkt{grid-template-columns:1fr}}
+  .qrow{display:flex;gap:16px;align-items:flex-start}
+  .thumb{width:56px;height:56px;border-radius:9px;flex:none;
+    background:linear-gradient(135deg,#1f2a3a,#2d7ff9 180%);border:1px solid var(--line)}
+  .q{font-size:21px;font-weight:600;line-height:1.3;margin:0}
+  .meta{display:flex;gap:14px;color:var(--dim);font-size:12.5px;margin-top:9px;flex-wrap:wrap}
+  .odds{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+  .odd{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel2)}
+  .odd .side{font-size:12px;color:var(--dim);letter-spacing:.08em}
+  .odd .pct{font-size:29px;font-weight:700;font-family:ui-monospace,monospace;margin-top:3px}
+  .odd.y .pct{color:var(--yes)} .odd.n .pct{color:var(--no)}
+  .buy{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0 0}
+  .buy button{padding:13px;border-radius:9px;border:1px solid transparent;cursor:pointer;
+    font-weight:650;font-size:14px}
+  .buy .y{background:var(--yes-bg);color:var(--yes);border-color:rgba(39,174,138,.35)}
+  .buy .n{background:var(--no-bg);color:var(--no);border-color:rgba(224,82,95,.35)}
+  .buy button.sel{outline:2px solid currentColor;outline-offset:-2px}
+  input{width:100%;padding:12px;border-radius:9px;border:1px solid var(--line);
+    background:#0f131b;color:var(--ink);font-size:16px;font-family:ui-monospace,monospace;
+    margin-top:10px}
+  .cta{width:100%;margin-top:11px;padding:14px;border-radius:9px;border:0;background:var(--acc);
+    color:#fff;font-weight:650;font-size:14.5px;cursor:pointer}
+  .cta:disabled{opacity:.35;cursor:not-allowed}
+  .diff{margin-top:14px;padding:12px;border-radius:9px;background:rgba(45,127,249,.09);
+    border:1px solid rgba(45,127,249,.25);color:#a8c8ff;font-size:12.5px}
+
+  /* generic */
+  .row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0}
+  .row + .row{border-top:1px solid var(--line)}
+  .k{color:var(--dim);font-size:13px}
+  .v{font-family:ui-monospace,monospace;font-size:13.5px}
+  .note{color:var(--dim);font-size:12.5px;margin-top:12px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
+  .p{display:flex;align-items:center;gap:11px;padding:10px 0}
   .p + .p{border-top:1px solid var(--line)}
   .dot{width:8px;height:8px;border-radius:99px;background:#3a4252;flex:none}
   .dot.on{background:var(--yes)}
-  .addr{font-family:ui-monospace,monospace;font-size:12px;color:var(--dim);
+  .addr{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .want{font-family:ui-monospace,monospace;font-size:12px;margin-left:auto;flex:none}
-  button.run{width:100%;margin-top:16px;padding:15px;border-radius:9px;border:0;
-    background:var(--acc);color:#fff;font-weight:600;font-size:15px;cursor:pointer}
-  button.run:disabled{opacity:.35;cursor:not-allowed}
-  .note{color:var(--dim);font-size:12px;margin-top:12px}
-  .row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0}
-  .row + .row{border-top:1px solid var(--line)}
-  .k{color:var(--dim);font-size:13px}
-  .v{font-family:ui-monospace,monospace;font-size:14px}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .big{font-size:32px;font-family:ui-monospace,monospace}
+  .want{font-family:ui-monospace,monospace;font-size:11.5px;margin-left:auto;flex:none;
+    padding:2px 7px;border-radius:5px;background:var(--panel2);border:1px solid var(--line)}
+  .big{font-size:31px;font-family:ui-monospace,monospace}
   .yes{color:var(--yes)} .no{color:var(--no)}
-  .bar{height:32px;border-radius:8px;overflow:hidden;display:flex;margin:13px 0 6px;
-    border:1px solid var(--line);background:#0d1017}
-  .bar div{display:flex;align-items:center;justify-content:center;font-size:12px;
+  .bar2{height:32px;border-radius:8px;overflow:hidden;display:flex;margin:13px 0 8px;
+    border:1px solid var(--line);background:#0f131b}
+  .bar2 div{display:flex;align-items:center;justify-content:center;font-size:11.5px;
     font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden}
-  .crossed{background:rgba(91,140,255,.22);color:#a9c3ff}
-  .exposed{background:rgba(255,180,84,.22);color:#ffd39a}
-  .hero{font-size:48px;font-family:ui-monospace,monospace;line-height:1}
+  .crossed{background:rgba(45,127,249,.24);color:#a8c8ff}
+  .exposed{background:rgba(240,166,58,.22);color:#ffd79a}
+  .hero{font-size:46px;font-family:ui-monospace,monospace;line-height:1}
   .log{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
-    background:#0d1017;border:1px solid var(--line);border-radius:8px;padding:12px;
-    height:210px;overflow:auto;white-space:pre-wrap}
-  .err{color:var(--no);font-size:12px;margin-top:10px;font-family:ui-monospace,monospace}
-  .stack{display:flex;flex-direction:column;gap:22px}
+    background:#0f131b;border:1px solid var(--line);border-radius:9px;padding:12px;
+    height:230px;overflow:auto;white-space:pre-wrap}
+  .err{color:var(--no);font-size:12.5px;margin-top:10px;font-family:ui-monospace,monospace}
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden}
+  @media(max-width:880px){.vs{grid-template-columns:1fr}}
+  .vs > div{padding:18px}
+  .vs .left{background:var(--panel2);border-right:1px solid var(--line)}
+  .vs h3{margin:0 0 12px;font-size:13px;font-weight:600}
+  .leak{color:var(--no)} .keep{color:var(--yes)}
+  ul.plain{margin:0;padding-left:17px;color:var(--dim);font-size:13px}
+  ul.plain li{margin:5px 0}
 </style>
 </head>
 <body>
 <header>
-  <h1>DARKMARKET</h1>
-  <span class="sub" id="meta">connecting...</span>
-  <span class="tag" id="netTag">-</span>
+  <div class="bar">
+    <span class="logo">DARKMARKET</span>
+    <span class="badge" id="netTag">-</span>
+    <nav>
+      <button class="on" data-t="market">Market</button>
+      <button data-t="pool">The pool</button>
+      <button data-t="chain">What the chain sees</button>
+      <button data-t="settle">Settlement</button>
+    </nav>
+  </div>
 </header>
 
-<div class="wrap">
-  <p class="lede">
-    A dark pool for prediction markets. Five funded Midnight wallets each seal a
-    position nobody can read. When the epoch closes, the chain learns two totals
-    and nothing else, and only what fails to match inside the pool reaches
-    Polymarket.
-  </p>
+<main>
+  <!-- MARKET -->
+  <section class="tab on" id="t-market">
+    <div class="mkt">
+      <div class="card">
+        <div class="qrow">
+          <div class="thumb"></div>
+          <div>
+            <p class="q" id="q">Will there be no change in Fed interest rates after the September 2026 meeting?</p>
+            <div class="meta">
+              <span id="mVol">volume -</span>
+              <span id="mEnd">-</span>
+              <span class="badge" id="mCond">-</span>
+            </div>
+          </div>
+        </div>
 
-  <div class="grid">
-    <div class="stack">
-      <div>
-        <h2>The five participants</h2>
-        <div class="card" id="pcard">
-          <div class="note">loading...</div>
-          <button class="run" id="run" disabled>Run the epoch</button>
-          <div class="note" id="runNote"></div>
-          <div class="err" id="runErr"></div>
+        <div class="odds">
+          <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
+          <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
+        </div>
+
+        <div class="note">
+          Prices are live from Polymarket. This is the same market, the same book,
+          the same token ids.
         </div>
       </div>
 
-      <div>
+      <div class="card">
+        <h2>Take a position</h2>
+        <div class="buy">
+          <button class="y sel" id="bY">Buy YES</button>
+          <button class="n" id="bN">Buy NO</button>
+        </div>
+        <input id="amt" type="number" min="1" value="500" placeholder="amount in USDC">
+        <button class="cta" id="add">Add to the pool</button>
+        <div class="diff">
+          On Polymarket this order goes straight to the public book, where anyone
+          can read your side and size before you are filled. Here it goes into an
+          epoch instead, and the book never sees it unless it fails to match.
+        </div>
+        <div class="err" id="addErr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POOL -->
+  <section class="tab" id="t-pool">
+    <p class="lede">
+      Five funded Midnight wallets, five real addresses on preprod. Each seals its
+      own intent with its own key and pays its own fee, so the five on the ledger
+      are five wallets rather than one wallet counting.
+    </p>
+    <div class="grid2">
+      <div class="card" id="pcard"><div class="note">loading...</div></div>
+      <div class="card">
         <h2>Live</h2>
-        <div class="card"><div class="log" id="log">waiting...</div></div>
+        <div class="log" id="log">waiting...</div>
       </div>
     </div>
+  </section>
 
-    <div class="stack">
-      <div>
-        <h2>What the chain can see</h2>
-        <div class="card">
-          <div class="two">
-            <div><div class="k">YES total</div><div class="big yes" id="yes">0</div></div>
-            <div><div class="k">NO total</div><div class="big no" id="no">0</div></div>
-          </div>
-          <div class="row" style="margin-top:12px"><span class="k">participants</span>
-            <span class="v" id="parts">0</span></div>
-          <div class="row"><span class="k">sealed this epoch</span>
-            <span class="v" id="sealed">0</span></div>
-          <div class="row"><span class="k">epoch</span><span class="v" id="epoch">0</span></div>
-          <div class="row"><span class="k">contract</span><span class="v" id="contract">-</span></div>
-          <div class="note" id="chainNote"></div>
-        </div>
+  <!-- CHAIN -->
+  <section class="tab" id="t-chain">
+    <p class="lede">
+      The difference is not what the interface shows you. It is what is left on a
+      public chain afterwards.
+    </p>
+    <div class="vs">
+      <div class="left">
+        <h3 class="leak">On Polymarket, publicly</h3>
+        <ul class="plain">
+          <li>every order, as it is placed</li>
+          <li>which side each wallet took</li>
+          <li>how much each wallet staked</li>
+          <li>the wallet address behind each position</li>
+          <li>your position before you are filled</li>
+        </ul>
       </div>
-
       <div>
+        <h3 class="keep">On Midnight, publicly</h3>
+        <div class="row"><span class="k">YES total</span><span class="v yes" id="cy">0</span></div>
+        <div class="row"><span class="k">NO total</span><span class="v no" id="cn">0</span></div>
+        <div class="row"><span class="k">participants</span><span class="v" id="cp">0</span></div>
+        <div class="row"><span class="k">epoch</span><span class="v" id="ce">0</span></div>
+        <div class="row"><span class="k">contract</span><span class="v" id="cc">-</span></div>
+        <div class="note" id="cNote">Two numbers. That is the whole disclosure.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <h2>During the sealed phase</h2>
+      <div class="note" style="margin:0">
+        Before an epoch closes the ledger holds commitments and two zeros. A
+        commitment is 32 bytes and cannot be worked backwards, so an observer
+        watching every block still cannot tell whether anyone bought YES.
+      </div>
+      <div class="row" style="margin-top:12px"><span class="k">sealed this epoch</span>
+        <span class="v" id="cs">0</span></div>
+    </div>
+  </section>
+
+  <!-- SETTLEMENT -->
+  <section class="tab" id="t-settle">
+    <p class="lede">
+      Opposing positions cancel inside the pool. Only the difference is sent out,
+      so the public tape sees one order instead of five.
+    </p>
+    <div class="grid2">
+      <div class="card">
         <h2>Crossing</h2>
-        <div class="card">
-          <div class="bar" id="bar"><div class="crossed" style="flex:1">no epoch yet</div></div>
-          <div class="row"><span class="k">matched inside the pool</span>
-            <span class="v" id="crossed">0</span></div>
-          <div class="row"><span class="k">sent to Polymarket</span>
-            <span class="v" id="exposed">0</span></div>
-          <div style="margin-top:16px">
-            <div class="k">kept private</div>
-            <div class="hero" id="shielded">0<span style="font-size:22px">%</span></div>
-          </div>
+        <div class="bar2" id="bar"><div class="crossed" style="flex:1">no epoch yet</div></div>
+        <div class="row"><span class="k">matched inside the pool</span><span class="v" id="sc">0</span></div>
+        <div class="row"><span class="k">sent to Polymarket</span><span class="v" id="se">0</span></div>
+        <div style="margin-top:16px">
+          <div class="k">kept private</div>
+          <div class="hero" id="sp">0<span style="font-size:21px">%</span></div>
         </div>
       </div>
-
-      <div>
-        <h2>Polymarket</h2>
-        <div class="card" id="order"><div class="note">Close an epoch to see what leaks out.</div></div>
+      <div class="card" id="order">
+        <h2>The order that reaches the book</h2>
+        <div class="note">Run an epoch to see what leaks out.</div>
       </div>
     </div>
-  </div>
-</div>
+  </section>
+</main>
 
 <script src="config.js"></script>
 <script>
 var API = (window.DARKMARKET_API || "").replace(/\/$/, "");
 function $(id){ return document.getElementById(id); }
 var WANT = ["YES 500","YES 200","NO 100","YES 100","NO 200"];
+var side = true;
 
-async function api(path, opts){
-  var r = await fetch(API + path, opts);
-  return await r.json();
+var tabs = document.querySelectorAll("nav button");
+for (var i=0;i<tabs.length;i++){
+  tabs[i].onclick = (function(b){ return function(){
+    for (var j=0;j<tabs.length;j++) tabs[j].classList.remove("on");
+    b.classList.add("on");
+    var secs = document.querySelectorAll(".tab");
+    for (var j=0;j<secs.length;j++) secs[j].classList.remove("on");
+    $("t-" + b.dataset.t).classList.add("on");
+  };})(tabs[i]);
 }
+
+$("bY").onclick = function(){ side = true; $("bY").classList.add("sel"); $("bN").classList.remove("sel"); };
+$("bN").onclick = function(){ side = false; $("bN").classList.add("sel"); $("bY").classList.remove("sel"); };
+$("add").onclick = function(){
+  $("addErr").textContent = "Positions for this demo are the five preset participants. Open The pool to run the epoch.";
+};
+
+async function api(p, o){ var r = await fetch(API + p, o); return await r.json(); }
 
 async function refresh(){
   try{
     var s = await api("/api/state");
-    $("meta").textContent = s.contract.slice(0,22) + "...";
     $("netTag").textContent = s.network;
-    $("contract").textContent = s.contract.slice(0,10) + "..." + s.contract.slice(-6);
-    $("yes").textContent = s.chain.yes;
-    $("no").textContent = s.chain.no;
-    $("parts").textContent = s.chain.participants;
-    $("sealed").textContent = s.chain.sealed;
-    $("epoch").textContent = s.chain.epoch;
+    $("cc").textContent = s.contract.slice(0,10) + "..." + s.contract.slice(-6);
+    $("cy").textContent = s.chain.yes;
+    $("cn").textContent = s.chain.no;
+    $("cp").textContent = s.chain.participants;
+    $("ce").textContent = s.chain.epoch;
+    $("cs").textContent = s.chain.sealed;
+    $("mCond").textContent = (s.chain.conditionId || "").slice(0,10) + "...";
 
     var ready = 0, html = "";
     for (var i=0;i<s.participants.length;i++){
       var p = s.participants[i];
       if (p.ready) ready++;
-      html += '<div class="p"><span class="dot' + (p.ready ? " on" : "") + '"></span>' +
-              '<span class="addr">' + (p.address ? p.address : "participant " + i + " - not ready") + '</span>' +
-              '<span class="want">' + WANT[i] + '</span></div>';
+      html += '<div class="p"><span class="dot' + (p.ready?" on":"") + '"></span>' +
+        '<span class="addr">' + (p.address || ("participant " + i + " - syncing")) + '</span>' +
+        '<span class="want">' + WANT[i] + '</span></div>';
     }
-    $("pcard").innerHTML = html +
-      '<button class="run" id="run"' + ((ready === s.floor && !s.running && !s.booting) ? "" : " disabled") + '>' +
-      (s.running ? "running..." : "Run the epoch") + '</button>' +
-      '<div class="note" id="runNote">' +
-      (s.booting ? "Syncing wallets. A preprod sync takes about twenty minutes and all five run at once."
-        : ready === s.floor ? "All five funded and synced. One click seals five intents and closes the epoch."
-        : ready + " of " + s.floor + " wallets ready.") +
-      '</div><div class="err" id="runErr"></div>';
+    html += '<button class="cta" id="run"' +
+      ((ready === s.floor && !s.running && !s.booting) ? "" : " disabled") + '>' +
+      (s.running ? "running..." : "Run the epoch") + '</button>';
+    html += '<div class="note">' + (s.booting
+      ? "Syncing wallets. All five run at once."
+      : ready === s.floor ? "All five funded and synced. One click seals five intents and closes the epoch."
+      : ready + " of " + s.floor + " wallets ready.") + '</div><div class="err" id="runErr"></div>';
+    $("pcard").innerHTML = html;
     $("run").onclick = runEpoch;
 
     var closed = Number(s.chain.yes) + Number(s.chain.no) > 0;
-    $("chainNote").textContent = closed
-      ? "Two totals. The five sizes that made them are not recoverable from this state."
-      : "During the sealed phase the ledger holds commitments and two zeros.";
+    $("cNote").textContent = closed
+      ? "Two numbers. The five sizes that made them are not recoverable from this state."
+      : "Two numbers. That is the whole disclosure.";
 
     var cr = Number(s.residual.crossed), ex = Number(s.residual.size);
-    $("crossed").textContent = cr;
-    $("exposed").textContent = ex ? ex + " " + s.residual.side : "0";
-    $("shielded").innerHTML = s.shielded.toFixed(2) + '<span style="font-size:22px">%</span>';
+    $("sc").textContent = cr;
+    $("se").textContent = ex ? ex + " " + s.residual.side : "0";
+    $("sp").innerHTML = s.shielded.toFixed(2) + '<span style="font-size:21px">%</span>';
     var tot = cr*2 + ex;
     if (tot > 0){
       var b = "";
-      if (cr > 0) b += '<div class="crossed" style="flex:' + (cr*2/tot*100) + '">matched - ' + (cr*2) + '</div>';
+      if (cr > 0) b += '<div class="crossed" style="flex:' + (cr*2/tot*100) + '">matched inside - ' + (cr*2) + '</div>';
       if (ex > 0) b += '<div class="exposed" style="flex:' + (ex/tot*100) + '">public - ' + ex + '</div>';
       $("bar").innerHTML = b;
     }
@@ -195,24 +321,31 @@ async function refresh(){
       el.textContent = s.log.join("\n");
       if (atBottom) el.scrollTop = el.scrollHeight;
     }
-
-    if (closed) loadOrder();
-  } catch(e){ $("meta").textContent = "backend unreachable"; }
+    loadOrder(closed);
+  } catch(e){ $("netTag").textContent = "backend unreachable"; }
 }
 
-async function loadOrder(){
+async function loadOrder(closed){
   try{
     var r = await api("/api/order");
-    if (r.error){ $("order").innerHTML = '<div class="err">' + r.error + '</div>'; return; }
+    if (r.market){
+      $("q").textContent = r.market.question || $("q").textContent;
+      $("oy").textContent = Math.round(r.market.yesPrice*100) + "¢";
+      $("on_").textContent = Math.round(r.market.noPrice*100) + "¢";
+    }
+    if (!closed) return;
+    if (r.error){ $("order").innerHTML = '<h2>The order that reaches the book</h2><div class="err">' + r.error + '</div>'; return; }
     if (r.crossed){
-      $("order").innerHTML = '<div class="note">Fully crossed. Nothing reaches Polymarket at all.</div>';
+      $("order").innerHTML = '<h2>The order that reaches the book</h2><div class="note">Fully crossed. Nothing reaches Polymarket at all.</div>';
       return;
     }
-    var o = r.order, m = r.market;
-    $("order").innerHTML =
-      '<div class="row"><span class="k">market</span><span class="v">' + m.slug.slice(0,42) + '...</span></div>' +
-      '<div class="row"><span class="k">buy</span><span class="v ' + (o.outcome === "YES" ? "yes":"no") + '">' + o.outcome + ' @ ' + o.price + '</span></div>' +
-      '<div class="row"><span class="k">size</span><span class="v">' + o.sizeUsdc + ' USDC - ~' + o.shares + ' shares</span></div>' +
+    var o = r.order;
+    $("order").innerHTML = '<h2>The order that reaches the book</h2>' +
+      '<div class="row"><span class="k">side</span><span class="v ' + (o.outcome==="YES"?"yes":"no") + '">' + o.outcome + '</span></div>' +
+      '<div class="row"><span class="k">price</span><span class="v">' + o.price + '</span></div>' +
+      '<div class="row"><span class="k">size</span><span class="v">' + o.sizeUsdc + ' USDC</span></div>' +
+      '<div class="row"><span class="k">shares</span><span class="v">~' + o.shares + '</span></div>' +
+      '<div class="row"><span class="k">token</span><span class="v">' + o.tokenId.slice(0,16) + '...</span></div>' +
       '<div class="note">Live price from Polymarket. The order is computed, not signed.</div>';
   } catch(e){}
 }

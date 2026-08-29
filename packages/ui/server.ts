@@ -15,7 +15,9 @@ import "@midnightntwrk/onchain-runtime-v4";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
-  buildWalletAndWaitForFunds,
+  buildWalletFacade,
+  waitForDustFunds,
+  registerNightForDust,
   configureMidnightNodeProviders,
   readMidnightContract,
   midnightNetworkConfig,
@@ -53,9 +55,17 @@ const say = (s: string) => {
   console.log("[darkmarket]", s);
 };
 
-const address = process.argv[2] ??
-  readMidnightContract("contract-round-value", { networkId: NETWORK }).contractAddress;
-if (!address) throw new Error("no contract address");
+// The contract address is passed in. readMidnightContract is only a fallback,
+// because it hunts the filesystem for a record file that is written at deploy
+// time and is not in the image: relying on it crashes the container at boot.
+const address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT ?? (() => {
+  try {
+    return readMidnightContract("contract-round-value", { networkId: NETWORK }).contractAddress;
+  } catch {
+    return undefined;
+  }
+})();
+if (!address) throw new Error("no contract address: pass one as an argument or set DARKMARKET_CONTRACT");
 
 const mnemonic = readLocalEnv("MIDNIGHT_WALLET_MNEMONIC");
 if (!mnemonic) throw new Error("no MIDNIGHT_WALLET_MNEMONIC");
@@ -65,7 +75,10 @@ const urls = {
   id: net.id, indexer: net.indexer, indexerWS: net.indexerWS,
   node: net.node, proofServer: net.proofServer,
 };
-const contractData = readMidnightContract("contract-round-value", { networkId: NETWORK });
+// Same for the proving keys. They ship in the image at a known path, so look
+// there first and only fall back to the search.
+const zkConfigPath = process.env.DARKMARKET_ZK_CONFIG ??
+  "/app/packages/contracts-midnight/contract-round-value/src/managed";
 const seeds = allSeeds(mnemonic);
 
 const participants: (Participant | undefined)[] = new Array(PARTICIPANTS).fill(undefined);
@@ -87,11 +100,21 @@ const bootOne = async (i: number): Promise<void> => {
   for (let attempt = 1; attempt <= BOOT_ATTEMPTS; attempt++) {
     try {
       say(`participant ${i}: building wallet (attempt ${attempt})`);
-      const w = await buildWalletAndWaitForFunds(urls as never, seeds[i], NETWORK as never);
+      // dust-only: a participant seals and pays a fee, so it needs dust and
+      // nothing else. The shielded scan is the slow half of a preprod sync and
+      // this skips it, along with the indexer connections it would hold open.
+      const w = await buildWalletFacade(urls as never, seeds[i], NETWORK as never, "dust-only");
+      say(`participant ${i}: waiting for dust`);
+      try {
+        await registerNightForDust(w);
+      } catch (e: unknown) {
+        say(`participant ${i}: dust registration skipped, ${String((e as Error)?.message ?? e).slice(0, 90)}`);
+      }
+      await waitForDustFunds(w.wallet, { timeoutMs: Number(process.env.DARKMARKET_DUST_TIMEOUT_MS ?? 900000) });
       const providers = await configureMidnightNodeProviders(
         w.wallet, w.zswapSecretKeys, w.walletZswapSecretKeys, w.dustSecretKey,
         w.walletDustSecretKey, urls as never, `darkmarket-p${i}`,
-        contractData.zkConfigPath, w.unshieldedKeystore,
+        zkConfigPath, w.unshieldedKeystore,
       );
       const compiled = CompiledContract.make("contract-round-value", Contract.Contract).pipe(
         CompiledContract.withWitnesses({} as never),
@@ -234,10 +257,15 @@ Bun.serve({
         participants: chain.participants, epoch: chain.epoch,
       };
       const residual = netOff(agg);
-      if (residual.kind === "crossed") return json({ crossed: true, market: null, order: null });
+      // The market itself is always returned, epoch or not: the front page shows
+      // live Polymarket prices before anyone has taken a position.
       try {
         const market = await resolveMarket(agg.conditionId);
-        return json({ crossed: false, market, order: buildOrder(residual, market) });
+        return json({
+          crossed: residual.kind === "crossed",
+          market,
+          order: residual.kind === "crossed" ? null : buildOrder(residual, market),
+        });
       } catch (e: unknown) {
         return json({ error: String((e as Error)?.message ?? e).slice(0, 200) }, 502);
       }
