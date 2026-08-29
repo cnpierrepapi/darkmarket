@@ -2,3 +2,7 @@ packages/contracts-midnight/contract-round-value/src/managed
 
 # scratch
 probe.ts
+
+# secrets, never commit
+.env.local
+.env
