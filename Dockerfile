@@ -35,9 +35,6 @@ RUN curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compa
 ENV PATH="/root/.local/bin:$PATH"
 RUN which compact
 RUN compact update 0.31.0
-# The contract script compiles with `compact compile +0.33.0-rc.2`, so that toolchain
-# must be present too or build:midnight fails with "Couldn't find compiler".
-RUN compact update 0.34.0
 RUN compact --version
 RUN compact compile --version
 
