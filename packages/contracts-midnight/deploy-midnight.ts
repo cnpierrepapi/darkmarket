@@ -24,7 +24,9 @@ console.log("resolved network:", network.id, "node:", network.node);
 
 const config: DeployConfig = {
   contractName: "contract-round-value",
-  contractFileName: "darkmarket.json",
+  // readMidnightContract looks up by contract name, so the file has to be
+  // named for the contract, not for the project.
+  contractFileName: "contract-round-value.json",
   contractClass: Counter.Contract,
   witnesses,
   privateStateId: "darkmarketPrivateState",

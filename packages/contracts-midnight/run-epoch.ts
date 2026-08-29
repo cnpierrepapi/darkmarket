@@ -41,9 +41,14 @@ const fixed = (s: string, len: number): Uint8Array => {
   return new Uint8Array(b);
 };
 
+// An explicit address wins. The container's orchestrator also deploys on
+// startup and records its own, so guessing from disk picks the wrong contract
+// about half the time.
+const explicit = process.argv[2];
 const contractData = readMidnightContract("contract-round-value", { networkId: NETWORK });
-if (!contractData.contractAddress) {
-  console.error(`no deployed contract recorded for ${NETWORK}. deploy first.`);
+const contractAddress = explicit ?? contractData.contractAddress;
+if (!contractAddress) {
+  console.error(`no contract address. pass one, or deploy first.`);
   process.exit(1);
 }
 
@@ -57,7 +62,7 @@ const urls = {
 };
 
 console.log(`network:  ${NETWORK}`);
-console.log(`contract: ${contractData.contractAddress}`);
+console.log(`contract: ${contractAddress}`);
 console.log(`market:   ${MARKET}`);
 console.log("");
 
@@ -79,7 +84,7 @@ const compiled = CompiledContract.make("contract-round-value", Contract.Contract
   CompiledContract.withCompiledFileAssets("./"),
 );
 const dm = await findDeployedContract(providers, {
-  contractAddress: contractData.contractAddress,
+  contractAddress,
   compiledContract: compiled as never,
   privateStateId: "darkmarketPrivateState",
   initialPrivateState: {},
@@ -111,7 +116,7 @@ const closeTx = await dm.callTx.close_epoch(
 console.log(`closed in block ${closeTx.public.blockHeight}`);
 console.log("");
 
-const state = await providers.publicDataProvider.queryContractState(contractData.contractAddress);
+const state = await providers.publicDataProvider.queryContractState(contractAddress);
 const l = Contract.ledger(state!.data);
 console.log("--- what the chain now shows ---");
 console.log(`YES total:    ${l.yes_notional}`);
