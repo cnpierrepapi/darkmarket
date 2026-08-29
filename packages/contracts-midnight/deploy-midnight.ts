@@ -1,9 +1,10 @@
-// Deploy the DARKMARKET circuit to Midnight preprod.
+// Deploy the DARKMARKET circuit. MIDNIGHT_NETWORK_ID picks the target:
+// "undeployed" for the local stack, "preprod" for the public testnet.
 //
-// preprod-env MUST be imported first: it sets every environment variable the
+// midnight-target MUST be imported first: it sets every environment variable the
 // SDK reads, and the SDK freezes its network config at import time.
 
-import "./preprod-env.ts";
+import "./midnight-target.ts";
 import "@midnightntwrk/onchain-runtime-v4";
 
 import { deployMidnightContract } from "@effectstream/midnight-contracts/deploy";
