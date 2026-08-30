@@ -317,6 +317,7 @@ Bun.serve({
           try {
             say(`settling ${residual.size} ${residual.side} on Polygon`);
             lastSettlement = await settleOnPolygon({
+              midnightContract: address,
               epoch: chain.epoch,
               conditionId: agg.conditionId,
               side: residual.side,

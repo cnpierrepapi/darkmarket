@@ -20,8 +20,9 @@ contract DarkPoolVault {
     }
 
     struct Settlement {
+        bytes32 midnightContract; // which Midnight contract closed this epoch
         bytes32 conditionId; // Polymarket's market id, the same 32 bytes Midnight stored
-        uint64 epoch; // which Midnight epoch produced this
+        uint64 epoch; // which epoch on that contract
         Side side; // which way the residual went
         uint256 size; // how much reached the open market
         uint256 crossed; // how much matched privately and never did
@@ -42,11 +43,16 @@ contract DarkPoolVault {
     uint256 public committed;
 
     Settlement[] public settlements;
-    mapping(uint64 => bool) public epochSettled;
+
+    /// Keyed on the Midnight contract AND the epoch. Every Midnight contract
+    /// starts counting at epoch 1, so the epoch alone collides across
+    /// deployments and would reject every later contract's first epoch.
+    mapping(bytes32 => mapping(uint64 => bool)) public settled;
 
     event Deposited(address indexed trader, uint256 amount, uint256 balance);
     event Withdrawn(address indexed trader, uint256 amount, uint256 balance);
     event ResidualSettled(
+        bytes32 indexed midnightContract,
         uint64 indexed epoch,
         bytes32 indexed conditionId,
         Side side,
@@ -59,7 +65,7 @@ contract DarkPoolVault {
     error NotExecutor();
     error NothingToDeposit();
     error InsufficientFree(uint256 requested, uint256 available);
-    error EpochAlreadySettled(uint64 epoch);
+    error AlreadySettled(bytes32 midnightContract, uint64 epoch);
     error NoResidual();
     error TransferFailed();
 
@@ -118,20 +124,24 @@ contract DarkPoolVault {
     ///      because nothing reached the open market and nothing should be
     ///      committed here.
     function settleResidual(
+        bytes32 midnightContract,
         uint64 epoch,
         bytes32 conditionId,
         Side side,
         uint256 size,
         uint256 crossed
     ) external onlyExecutor {
-        if (epochSettled[epoch]) revert EpochAlreadySettled(epoch);
+        if (settled[midnightContract][epoch]) {
+            revert AlreadySettled(midnightContract, epoch);
+        }
         if (size == 0) revert NoResidual();
         if (size > freeCollateral()) revert InsufficientFree(size, freeCollateral());
 
-        epochSettled[epoch] = true;
+        settled[midnightContract][epoch] = true;
         committed += size;
         settlements.push(
             Settlement({
+                midnightContract: midnightContract,
                 conditionId: conditionId,
                 epoch: epoch,
                 side: side,
@@ -141,12 +151,18 @@ contract DarkPoolVault {
             })
         );
 
-        emit ResidualSettled(epoch, conditionId, side, size, crossed);
+        emit ResidualSettled(midnightContract, epoch, conditionId, side, size, crossed);
     }
 
     /// @notice Release collateral once a market resolves and the position closes.
-    function releaseEpoch(uint64 epoch, uint256 amount) external onlyExecutor {
-        if (!epochSettled[epoch]) revert EpochAlreadySettled(epoch);
+    function releaseEpoch(
+        bytes32 midnightContract,
+        uint64 epoch,
+        uint256 amount
+    ) external onlyExecutor {
+        if (!settled[midnightContract][epoch]) {
+            revert AlreadySettled(midnightContract, epoch);
+        }
         committed = committed > amount ? committed - amount : 0;
     }
 
@@ -164,6 +180,7 @@ contract DarkPoolVault {
         external
         view
         returns (
+            bytes32 midnightContract,
             uint64 epoch,
             bytes32 conditionId,
             Side side,
@@ -172,6 +189,6 @@ contract DarkPoolVault {
         )
     {
         Settlement storage s = settlements[settlements.length - 1];
-        return (s.epoch, s.conditionId, s.side, s.size, s.crossed);
+        return (s.midnightContract, s.epoch, s.conditionId, s.side, s.size, s.crossed);
     }
 }
