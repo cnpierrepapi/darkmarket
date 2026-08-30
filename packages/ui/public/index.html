@@ -146,6 +146,34 @@
   .note{color:var(--dim);font-size:12.5px;margin-top:10px}
   .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
   @media(max-width:1000px){.three{grid-template-columns:1fr}}
+
+  /* ---- toasts ----
+     A click here can mean fifteen seconds of proving followed by a chain
+     write, and a button that just sits there looks broken. So every action
+     opens a card that says what is happening, then turns into what happened. */
+  .toasts{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;
+    flex-direction:column-reverse;gap:10px;max-width:400px}
+  .toast{display:flex;gap:11px;align-items:flex-start;background:#22262c;
+    border:1px solid #33383f;border-left:3px solid var(--dim2);border-radius:10px;
+    padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.45);
+    animation:tin .18s ease-out}
+  @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .toast.out{opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s}
+  .toast.work{border-left-color:var(--acc)}
+  .toast.ok{border-left-color:var(--yes)}
+  .toast.bad{border-left-color:var(--no)}
+  .toast .tspin{width:15px;height:15px;flex:none;margin-top:2px;border-radius:50%;
+    border:2px solid #3d434b;border-top-color:var(--acc);animation:tspin .7s linear infinite}
+  @keyframes tspin{to{transform:rotate(360deg)}}
+  .toast.ok .tspin{border:0;animation:none;color:var(--yes);font-weight:700}
+  .toast.bad .tspin{border:0;animation:none;color:var(--no);font-weight:700}
+  .toast .tt{font-size:13.5px;font-weight:600;line-height:1.35}
+  .toast .td{font-size:12px;color:var(--dim);margin-top:3px;
+    font-family:ui-monospace,monospace;overflow-wrap:anywhere}
+  .toast .tl{display:inline-block;margin-top:6px;font-size:12px;font-weight:600}
+  .toast .tx{margin-left:auto;color:var(--dim2);cursor:pointer;font-size:15px;
+    line-height:1;padding-left:6px}
+  .toast .tx:hover{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -281,6 +309,8 @@
   </section>
 
 </main>
+
+<div class="toasts" id="toasts"></div>
 
 <script src="config.js"></script>
 <script>
@@ -473,6 +503,82 @@ $("search").oninput = function(){
 $("sYES").onclick = function(){ side="YES"; $("sYES").classList.add("sel"); $("sNO").classList.remove("sel"); };
 $("sNO").onclick  = function(){ side="NO";  $("sNO").classList.add("sel");  $("sYES").classList.remove("sel"); };
 
+
+// ---- toasts -------------------------------------------------------------
+// Opening a position is a proof, and a proof takes as long as it takes. The
+// card goes up the moment you click and stays until the backend answers, so
+// the wait is visibly work rather than a button that stopped responding.
+var toastSeq = 0;
+var toastEls = {};
+var workToast = null;   // whichever card is currently tracking backend work
+var bootToast = null;
+var backendDown = null;
+
+function toastEl(id){ return toastEls[id]; }
+
+function toast(title, kind, detail){
+  var id = ++toastSeq;
+  var el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.innerHTML =
+    '<div class="tspin"></div>' +
+    '<div class="tbody"><div class="tt"></div><div class="td"></div>' +
+    '<a class="tl" target="_blank" rel="noreferrer" style="display:none"></a></div>' +
+    '<div class="tx">&times;</div>';
+  el.querySelector(".tt").textContent = title;
+  var d = el.querySelector(".td");
+  if (detail){ d.textContent = detail; } else { d.style.display = "none"; }
+  if (kind === "ok") el.querySelector(".tspin").textContent = "✓";
+  if (kind === "bad") el.querySelector(".tspin").textContent = "!";
+  el.querySelector(".tx").onclick = function(){ closeToast(id); };
+  document.getElementById("toasts").appendChild(el);
+  toastEls[id] = el;
+  if (kind !== "work") autoClose(id, kind === "bad" ? 15000 : 9000);
+  return id;
+}
+
+function setToast(id, title, kind, detail, href, linkText){
+  var el = toastEls[id];
+  if (!el) return;
+  el.className = "toast " + kind;
+  el.querySelector(".tt").textContent = title;
+  var d = el.querySelector(".td");
+  if (detail){ d.textContent = detail; d.style.display = ""; } else { d.style.display = "none"; }
+  var sp = el.querySelector(".tspin");
+  sp.textContent = kind === "ok" ? "✓" : (kind === "bad" ? "!" : "");
+  var a = el.querySelector(".tl");
+  if (href){ a.href = href; a.textContent = linkText || "View"; a.style.display = ""; }
+  else { a.style.display = "none"; }
+  if (kind !== "work") autoClose(id, kind === "bad" ? 15000 : 9000);
+}
+
+function autoClose(id, ms){ setTimeout(function(){ closeToast(id); }, ms); }
+
+function closeToast(id){
+  var el = toastEls[id];
+  if (!el) return;
+  el.classList.add("out");
+  setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+  delete toastEls[id];
+  if (workToast === id) workToast = null;
+  if (bootToast === id) bootToast = null;
+}
+
+// The backend keeps a running log. While something is in flight, show its
+// latest line inside the card, so a long proof reports where it has got to
+// instead of just spinning.
+function trackProgress(state){
+  var id = workToast || bootToast;
+  if (!id) return;
+  var lines = state.log || [];
+  if (!lines.length) return;
+  var el = toastEls[id];
+  if (!el) return;
+  var d = el.querySelector(".td");
+  d.style.display = "";
+  d.textContent = lines[lines.length - 1].replace(/^\d\d:\d\d:\d\d\s+/, "");
+}
+
 async function api(path, opts){
   var r = await fetch(API + path, opts);
   return await r.json();
@@ -517,6 +623,24 @@ async function refresh(){
   try{
     var s = await api("/api/state");
     walletCount = s.wallets.length;
+
+    // One card for the whole cold start, updated with the backend's own log,
+    // so a three minute boot reads as progress rather than a dead page.
+    var readyNow = s.wallets.filter(function(w){ return w.ready; }).length;
+    if (s.booting && !bootToast && !workToast){
+      bootToast = toast("Bringing up the chain", "work", "this takes a few minutes from cold");
+    }
+    if (!s.booting && bootToast){
+      setToast(bootToast, "Backend ready", "ok",
+        readyNow + " of " + s.wallets.length + " wallets, contract " +
+        String(s.contract || "").slice(0, 16) + "...");
+      bootToast = null;
+    }
+    if (s.bootError && bootToast){
+      setToast(bootToast, "Boot problem", "bad", s.bootError);
+      bootToast = null;
+    }
+    trackProgress(s);
     $("netTag").textContent = s.network;
     var ready = s.wallets.filter(function(w){ return w.ready; }).length;
     $("walletTag").textContent = ready + "/" + s.wallets.length + " ready";
@@ -566,22 +690,39 @@ async function refresh(){
       el.textContent = s.log.join("\n");
       if (atBottom) el.scrollTop = el.scrollHeight;
     }
-  } catch(e){ $("netTag").textContent = "backend unreachable"; }
+  } catch(e){
+    $("netTag").textContent = "backend unreachable";
+    if (!backendDown){
+      backendDown = toast("Cannot reach the backend", "bad", "retrying every few seconds");
+    }
+    return;
+  }
+  if (backendDown){ closeToast(backendDown); backendDown = null; }
 }
 
 $("open").onclick = async function(){
   $("openErr").textContent = "";
+  if (!selected){ $("openErr").textContent = "pick a market first"; toast("Pick a market first", "bad"); return; }
+  var w = Number($("wallet").value), sz = Number($("size").value);
   $("open").disabled = true; $("open").textContent = "proving...";
+  workToast = toast("Proving a position", "work", "wallet " + w + " · " + side + " " + sz);
   try{
-    if (!selected){ $("openErr").textContent = "pick a market first"; refresh(); return; }
     var r = await post("/api/open", {
-      wallet: Number($("wallet").value),
-      side: side,
-      size: Number($("size").value),
-      conditionId: selected.conditionId
+      wallet: w, side: side, size: sz, conditionId: selected.conditionId
     });
-    if (r.error) $("openErr").textContent = r.error;
-  } catch(e){ $("openErr").textContent = String(e); }
+    if (r.error){
+      $("openErr").textContent = r.error;
+      setToast(workToast, "Could not open the position", "bad", r.error);
+    } else {
+      var p = r.position || {};
+      setToast(workToast, "Position open on Midnight", "ok",
+        "commitment " + String(p.commitment || "").slice(0, 22) + "... in block " + (p.openedBlock || "?"));
+    }
+  } catch(e){
+    $("openErr").textContent = String(e);
+    setToast(workToast, "Could not open the position", "bad", String(e));
+  }
+  workToast = null;
   refresh();
 };
 
@@ -589,19 +730,43 @@ window.matchIt = async function(id){
   $("actErr").textContent = "";
   var sel = $("mw" + id);
   if (!sel) return;
+  workToast = toast("Proving a match", "work", "position #" + id + " against wallet " + sel.value);
   try{
     var r = await post("/api/match", { target: id, wallet: Number(sel.value) });
-    if (r.error) $("actErr").textContent = r.error;
-  } catch(e){ $("actErr").textContent = String(e); }
+    if (r.error){
+      $("actErr").textContent = r.error;
+      setToast(workToast, "Could not match", "bad", r.error);
+    } else {
+      setToast(workToast, "Matched privately", "ok",
+        "both sides sealed in one proof, nothing reached the open market");
+    }
+  } catch(e){
+    $("actErr").textContent = String(e);
+    setToast(workToast, "Could not match", "bad", String(e));
+  }
+  workToast = null;
   refresh();
 };
 
 window.coverIt = async function(id){
   $("actErr").textContent = "";
+  workToast = toast("Settling on Polygon", "work", "position #" + id + " · waiting for the transaction");
   try{
     var r = await post("/api/cover", { position: id });
-    if (r.error) $("actErr").textContent = r.error;
-  } catch(e){ $("actErr").textContent = String(e); }
+    if (r.error){
+      $("actErr").textContent = r.error;
+      setToast(workToast, "Cover failed", "bad", r.error);
+    } else {
+      var c = (r.position && r.position.cover) || r.cover || {};
+      setToast(workToast, "Covered on Polygon", "ok",
+        c.txHash ? c.txHash.slice(0, 26) + "..." : "settled",
+        c.explorerUrl, "View on Polygonscan");
+    }
+  } catch(e){
+    $("actErr").textContent = String(e);
+    setToast(workToast, "Cover failed", "bad", String(e));
+  }
+  workToast = null;
   refresh();
 };
 
