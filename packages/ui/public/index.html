@@ -190,6 +190,13 @@
   .wspin{width:14px;height:14px;flex:none;margin-top:3px;border-radius:50%;
     border:2px solid rgba(43,108,255,.25);border-top-color:var(--acc);
     animation:tspin .7s linear infinite}
+
+  .off{background:rgba(232,163,61,.09);border:1px solid rgba(232,163,61,.32);
+    border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13px;
+    color:var(--dim);line-height:1.55}
+  .off b{color:var(--ink);font-size:13.5px}
+  .offl{margin-top:8px;padding-top:8px;border-top:1px solid rgba(232,163,61,.22);
+    font-size:12.5px}
 </style>
 </head>
 <body>
@@ -221,6 +228,21 @@
       <h1>All markets</h1>
       <div class="tools"><span>&#9906;</span><span>&#9776;</span><span>&#9734;</span></div>
     </div>
+    <div class="off" id="off" style="display:none">
+      <b>Trading is switched off.</b>
+      The proving backend ran on eight always-on vCPUs, which came to about six
+      hundred dollars a month, so it is not running any more. Prices and markets
+      below are live from Polymarket either way.
+      <div class="offl">
+        It did run. Here is the last position it covered, on Polygon mainnet:
+        <a href="https://polygonscan.com/tx/0x30f1bf5c162163807de0a499e864a38c0c290f4631602b2954a57514a74c16a5"
+           target="_blank" rel="noreferrer">the transaction</a>,
+        against <a href="https://polygonscan.com/address/0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B"
+           target="_blank" rel="noreferrer">the vault</a>.
+        The code is on <a href="https://github.com/cnpierrepapi/darkmarket" target="_blank" rel="noreferrer">GitHub</a>,
+        and it comes back up with one docker run.
+      </div>
+    </div>
     <div class="chips" id="chips"></div>
     <div class="mgrid" id="mgrid"><div class="empty">loading markets...</div></div>
   </section>
@@ -228,6 +250,15 @@
   <section class="tab" id="t-trade">
     <div class="wrap">
       <div class="crumb"><a id="backToMarkets">All markets</a> &rsaquo; <span id="crumbCat">market</span></div>
+      <div class="off" id="off2" style="display:none">
+        <b>Trading is switched off.</b>
+        You can read this market and its odds, both live from Polymarket, but
+        opening a position needs the proving backend and that is not running.
+        <div class="offl">
+          <a href="https://polygonscan.com/tx/0x30f1bf5c162163807de0a499e864a38c0c290f4631602b2954a57514a74c16a5"
+             target="_blank" rel="noreferrer">A cover it did settle</a>, on Polygon mainnet.
+        </div>
+      </div>
       <div class="warm" id="warm" style="display:none">
         <div class="wspin"></div>
         <div>
@@ -365,7 +396,7 @@ async function pickBackend(){
       var t = setTimeout(function(){ c.abort(); }, 4000);
       var r = await fetch(API_CANDIDATES[i] + "/api/state", { signal: c.signal });
       clearTimeout(t);
-      if (r.ok){ API = API_CANDIDATES[i]; return; }
+      if (r.ok){ API = API_CANDIDATES[i]; backendLive = true; return; }
     } catch(e){ /* try the next one */ }
   }
 }
@@ -383,6 +414,7 @@ var selected = null;
 var filterCat = "All";
 var query = "";
 var routed = false;
+var backendLive = false;
 
 function showTab(name){
   var secs = document.querySelectorAll(".tab");
@@ -484,7 +516,56 @@ function paintMarkets(){
   }).join("");
 }
 
+// With no backend there is still a market list, because Polymarket's own API
+// allows browser calls. Same query and the same filtering the backend did, run
+// from here instead. The site stays worth opening.
+function pickCategoryFrom(m){
+  var ev = (m.events || [])[0] || {};
+  var tags = ev.tags || m.tags || [];
+  for (var i = 0; i < tags.length; i++){
+    var label = String(tags[i].label || "");
+    if (label && label[0] === label[0].toUpperCase() && label.length < 22) return label;
+  }
+  var series = (ev.series || [])[0];
+  return series ? series.title : undefined;
+}
+
+async function marketsFromPolymarket(limit){
+  var url = "https://gamma-api.polymarket.com/markets?limit=" + (limit * 3) +
+    "&closed=false&active=true&order=volume24hr&ascending=false&include_tag=true";
+  var rows = await (await fetch(url)).json();
+  var out = [];
+  for (var i = 0; i < rows.length && out.length < limit; i++){
+    var m = rows[i];
+    try{
+      var ids = JSON.parse(m.clobTokenIds || "[]");
+      var pr = (JSON.parse(m.outcomePrices || "[]")).map(Number);
+      if (ids.length < 2 || pr.length < 2 || !m.conditionId) continue;
+      // Skip anything already decided. There is nothing to hide in a market
+      // whose answer is known.
+      if (!isFinite(pr[0]) || pr[0] <= 0.05 || pr[0] >= 0.95) continue;
+      out.push({
+        conditionId: m.conditionId, slug: m.slug, question: m.question,
+        yesPrice: pr[0], noPrice: pr[1],
+        icon: m.icon || m.image, volume: Number(m.volume || 0) || undefined,
+        category: pickCategoryFrom(m)
+      });
+    } catch(e){ /* a malformed row is not worth failing the list for */ }
+  }
+  return out;
+}
+
 async function loadMarkets(){
+  if (!backendLive){
+    try{
+      markets = await marketsFromPolymarket(12);
+      paintCats(); paintMarkets();
+      if (!routed){ routed = true; applyRoute(false); }
+    } catch(e){
+      $("mgrid").innerHTML = '<div class="empty">could not reach Polymarket</div>';
+    }
+    return;
+  }
   try{
     var r = await api("/api/markets");
     markets = r.markets || [];
@@ -697,9 +778,26 @@ function positionCard(p, showActs){
   return h + '</div>';
 }
 
+function paintOffline(){
+  $("off").style.display = "block";
+  $("off2").style.display = "block";
+  $("warm").style.display = "none";
+  $("netTag").textContent = "offline";
+  $("walletTag").textContent = "none running";
+  $("mc").textContent = "not deployed";
+  $("open").disabled = true;
+  $("open").textContent = "Trading is off";
+  $("wallet").innerHTML = '<option>no wallets</option>';
+  $("openList").innerHTML = '<div class="empty">The backend is not running.</div>';
+  $("closedList").innerHTML = '<div class="empty">The backend is not running.</div>';
+}
+
 async function refresh(){
+  if (!backendLive){ paintOffline(); return; }
   try{
     var s = await api("/api/state");
+    $("off").style.display = "none";
+    $("off2").style.display = "none";
     walletCount = s.wallets.length;
 
     // One card for the whole cold start, updated with the backend's own log,
@@ -790,10 +888,8 @@ async function refresh(){
       if (atBottom) el.scrollTop = el.scrollHeight;
     }
   } catch(e){
-    $("netTag").textContent = "backend unreachable";
-    if (!backendDown){
-      backendDown = toast("Cannot reach the backend", "bad", "retrying every few seconds");
-    }
+    backendLive = false;
+    paintOffline();
     return;
   }
   if (backendDown){ closeToast(backendDown); backendDown = null; }
