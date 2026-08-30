@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DARKMARKET</title>
+<style>
+  :root{
+    --bg:#0d1017; --panel:#141922; --panel2:#1a202b; --line:#232b38;
+    --ink:#eef2f8; --dim:#8b95a7; --acc:#2d7ff9;
+    --yes:#27ae8a; --yes-bg:rgba(39,174,138,.14);
+    --no:#e0525f; --no-bg:rgba(224,82,95,.14);
+    --warn:#f0a63a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif}
+  a{color:var(--acc)}
+  header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:9}
+  .bar{max-width:1180px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px}
+  .logo{font-size:17px;letter-spacing:.16em;font-weight:700}
+  .badge{padding:3px 8px;border-radius:5px;font-size:10.5px;letter-spacing:.09em;
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    font-family:ui-monospace,monospace}
+  nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+  nav button{background:none;border:0;color:var(--dim);padding:8px 13px;border-radius:7px;
+    cursor:pointer;font-size:13.5px;font-weight:500}
+  nav button.on{background:var(--panel2);color:var(--ink)}
+  main{max-width:1180px;margin:0 auto;padding:24px}
+  .tab{display:none} .tab.on{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  h2{font-size:11px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;
+    margin:0 0 12px;font-weight:600}
+  .lede{color:var(--dim);max-width:680px;margin:0 0 20px}
+  .cols{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+  .q{font-size:19px;font-weight:600;line-height:1.3;margin:0 0 10px}
+  .odds{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}
+  .odd{border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--panel2)}
+  .odd .side{font-size:11.5px;color:var(--dim);letter-spacing:.08em}
+  .odd .pct{font-size:25px;font-weight:700;font-family:ui-monospace,monospace}
+  .odd.y .pct{color:var(--yes)} .odd.n .pct{color:var(--no)}
+
+  label{display:block;font-size:11.5px;color:var(--dim);letter-spacing:.08em;
+    text-transform:uppercase;margin:14px 0 6px}
+  select,input{width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);
+    background:#0f131b;color:var(--ink);font-size:15px;font-family:ui-monospace,monospace}
+  .sides{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .sides button{padding:12px;border-radius:9px;border:1px solid var(--line);
+    background:transparent;color:var(--dim);cursor:pointer;font-weight:650;font-size:14px}
+  .sides button.sel[data-s="YES"]{background:var(--yes-bg);color:var(--yes);border-color:rgba(39,174,138,.4)}
+  .sides button.sel[data-s="NO"]{background:var(--no-bg);color:var(--no);border-color:rgba(224,82,95,.4)}
+  .cta{width:100%;margin-top:14px;padding:13px;border-radius:9px;border:0;background:var(--acc);
+    color:#fff;font-weight:650;font-size:14.5px;cursor:pointer}
+  .cta:disabled{opacity:.35;cursor:not-allowed}
+
+  .pos{border:1px solid var(--line);border-radius:10px;padding:13px;background:var(--panel2);
+    margin-bottom:10px}
+  .pos .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{padding:2px 8px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;
+    border:1px solid var(--line)}
+  .pill.YES{color:var(--yes);border-color:rgba(39,174,138,.4)}
+  .pill.NO{color:var(--no);border-color:rgba(224,82,95,.4)}
+  .mono{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
+    overflow-wrap:anywhere}
+  .acts{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+  .acts button{padding:8px 13px;border-radius:8px;border:0;cursor:pointer;font-size:13px;
+    font-weight:600}
+  .acts .m{background:var(--yes);color:#04231a}
+  .acts .c{background:var(--warn);color:#1a1200}
+  .acts select{width:auto;padding:7px 9px;font-size:12.5px}
+  .acts button:disabled{opacity:.35;cursor:not-allowed}
+  .empty{color:var(--dim);font-size:13px;padding:8px 0}
+  .row{display:flex;justify-content:space-between;padding:7px 0}
+  .row + .row{border-top:1px solid var(--line)}
+  .k{color:var(--dim);font-size:13px}
+  .v{font-family:ui-monospace,monospace;font-size:13.5px}
+  .log{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
+    background:#0f131b;border:1px solid var(--line);border-radius:9px;padding:11px;
+    height:200px;overflow:auto;white-space:pre-wrap}
+  .err{color:var(--no);font-size:12.5px;margin-top:9px;font-family:ui-monospace,monospace}
+  .note{color:var(--dim);font-size:12.5px;margin-top:10px}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:1000px){.three{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <span class="logo">DARKMARKET</span>
+    <span class="badge" id="netTag">-</span>
+    <span class="badge" id="walletTag">-</span>
+    <nav>
+      <button class="on" data-t="trade">Trade</button>
+      <button data-t="book">Positions</button>
+      <button data-t="chain">What the chain sees</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="tab on" id="t-trade">
+    <div class="cols">
+      <div class="card">
+        <h2>Open a position</h2>
+        <label>Wallet</label>
+        <select id="wallet"></select>
+        <label>Side</label>
+        <div class="sides">
+          <button data-s="YES" class="sel" id="sYES">YES</button>
+          <button data-s="NO" id="sNO">NO</button>
+        </div>
+        <label>Size</label>
+        <input id="size" type="number" min="1" value="500">
+        <button class="cta" id="open">Open position</button>
+        <div class="note">
+          What reaches Midnight is a commitment. Nobody watching the chain can
+          tell your side or your size, only that a position exists and when.
+        </div>
+        <div class="err" id="openErr"></div>
+      </div>
+
+      <div>
+        <div class="card">
+          <p class="q" id="q">loading market...</p>
+          <div class="odds">
+            <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
+            <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
+          </div>
+          <div class="row"><span class="k">condition id</span><span class="v" id="cond">-</span></div>
+          <div class="row"><span class="k">midnight contract</span><span class="v" id="mc">-</span></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <h2>Open orders you can act on</h2>
+          <div id="openList"><div class="empty">Nothing open yet.</div></div>
+          <div class="err" id="actErr"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="t-book">
+    <p class="lede">
+      Every position and where it ended up. A matched pair never reached the open
+      market at all. A covered one did, and left a transaction on Polygon.
+    </p>
+    <div class="three">
+      <div>
+        <h2>Open</h2>
+        <div class="card" id="colOpen"><div class="empty">none</div></div>
+      </div>
+      <div>
+        <h2>Matched on Midnight</h2>
+        <div class="card" id="colMatched"><div class="empty">none</div></div>
+      </div>
+      <div>
+        <h2>Covered on Polygon</h2>
+        <div class="card" id="colCovered"><div class="empty">none</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="t-chain">
+    <p class="lede">
+      The difference is not what this page shows you. It is what is left on a
+      public chain afterwards.
+    </p>
+    <div class="cols">
+      <div class="card">
+        <h2>On Midnight, publicly</h2>
+        <div class="row"><span class="k">positions opened</span><span class="v" id="cOpened">0</span></div>
+        <div class="row"><span class="k">matches</span><span class="v" id="cMatched">0</span></div>
+        <div class="row"><span class="k">matched notional</span><span class="v" id="cMN">0</span></div>
+        <div class="row"><span class="k">covered notional</span><span class="v" id="cCN">0</span></div>
+        <div class="row"><span class="k">calls</span><span class="v" id="cCalls">0</span></div>
+        <div class="note">
+          Counts and totals. Not one individual side or size, and no link from a
+          commitment back to the wallet that opened it.
+        </div>
+      </div>
+      <div class="card">
+        <h2>Live</h2>
+        <div class="log" id="log">waiting...</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+var API = (window.DARKMARKET_API || "").replace(/\/$/, "");
+function $(id){ return document.getElementById(id); }
+var side = "YES";
+var walletCount = 5;
+
+var tabs = document.querySelectorAll("nav button");
+for (var i=0;i<tabs.length;i++){
+  tabs[i].onclick = (function(b){ return function(){
+    for (var j=0;j<tabs.length;j++) tabs[j].classList.remove("on");
+    b.classList.add("on");
+    var secs = document.querySelectorAll(".tab");
+    for (var j=0;j<secs.length;j++) secs[j].classList.remove("on");
+    $("t-" + b.dataset.t).classList.add("on");
+  };})(tabs[i]);
+}
+
+$("sYES").onclick = function(){ side="YES"; $("sYES").classList.add("sel"); $("sNO").classList.remove("sel"); };
+$("sNO").onclick  = function(){ side="NO";  $("sNO").classList.add("sel");  $("sYES").classList.remove("sel"); };
+
+async function api(path, opts){
+  var r = await fetch(API + path, opts);
+  return await r.json();
+}
+function post(path, body){
+  return api(path, { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body) });
+}
+function shortTime(iso){ return iso ? iso.slice(11,19) + "Z" : ""; }
+
+function positionCard(p, showActs){
+  var h = '<div class="pos"><div class="top">' +
+    '<span class="pill ' + p.side + '">' + p.side + ' ' + p.size + '</span>' +
+    '<span class="mono">wallet ' + p.wallet + '</span>' +
+    '<span class="mono">#' + p.id + '</span></div>' +
+    '<div class="mono" style="margin-top:7px">commitment ' + p.commitment.slice(0,26) + '...</div>' +
+    '<div class="mono">opened block ' + p.openedBlock + ' at ' + shortTime(p.openedAt) + '</div>';
+  if (p.status === "matched"){
+    h += '<div class="mono">matched with #' + p.matchedWith + ' in block ' + p.matchedBlock +
+         ' at ' + shortTime(p.matchedAt) + '</div>';
+  }
+  if (p.status === "covered" && p.cover){
+    h += '<div class="mono">covered ' + shortTime(p.cover.at) + ' &middot; ' +
+         '<a href="' + p.cover.explorerUrl + '" target="_blank" rel="noreferrer">' +
+         p.cover.txHash.slice(0,18) + '...</a></div>';
+  }
+  if (showActs && p.status === "open"){
+    var opts = "";
+    for (var k=0;k<walletCount;k++){
+      if (k === p.wallet) continue;
+      opts += '<option value="' + k + '">wallet ' + k + '</option>';
+    }
+    h += '<div class="acts">' +
+         '<select id="mw' + p.id + '">' + opts + '</select>' +
+         '<button class="m" onclick="matchIt(' + p.id + ')">Match</button>' +
+         '<button class="c" onclick="coverIt(' + p.id + ')">Cover on Polygon</button>' +
+         '</div>';
+  }
+  return h + '</div>';
+}
+
+async function refresh(){
+  try{
+    var s = await api("/api/state");
+    walletCount = s.wallets.length;
+    $("netTag").textContent = s.network;
+    var ready = s.wallets.filter(function(w){ return w.ready; }).length;
+    $("walletTag").textContent = ready + "/" + s.wallets.length + " wallets";
+    $("cond").textContent = (s.conditionId||"").slice(0,12) + "..." + (s.conditionId||"").slice(-6);
+    $("mc").textContent = (s.contract||"").slice(0,10) + "..." + (s.contract||"").slice(-6);
+
+    var sel = $("wallet");
+    if (sel.options.length !== s.wallets.length){
+      sel.innerHTML = "";
+      for (var i=0;i<s.wallets.length;i++){
+        var w = s.wallets[i];
+        var o = document.createElement("option");
+        o.value = w.index;
+        o.textContent = "wallet " + w.index + (w.ready ? "" : " (syncing)") +
+          (w.address ? " - " + w.address.slice(0,22) + "..." : "");
+        sel.appendChild(o);
+      }
+    }
+
+    if (s.market){
+      $("q").textContent = s.market.question || "";
+      $("oy").textContent = Math.round(s.market.yesPrice*100) + "¢";
+      $("on_").textContent = Math.round(s.market.noPrice*100) + "¢";
+    }
+
+    $("cOpened").textContent = s.chain.opened;
+    $("cMatched").textContent = s.chain.matched;
+    $("cMN").textContent = s.chain.matchedNotional;
+    $("cCN").textContent = s.chain.coveredNotional;
+    $("cCalls").textContent = s.chain.calls;
+
+    var opens = s.positions.filter(function(p){ return p.status==="open"; });
+    var matched = s.positions.filter(function(p){ return p.status==="matched"; });
+    var covered = s.positions.filter(function(p){ return p.status==="covered"; });
+
+    $("openList").innerHTML = opens.length
+      ? opens.map(function(p){ return positionCard(p, true); }).join("")
+      : '<div class="empty">Nothing open yet. Open one on the left.</div>';
+    $("colOpen").innerHTML = opens.length ? opens.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
+    $("colMatched").innerHTML = matched.length ? matched.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
+    $("colCovered").innerHTML = covered.length ? covered.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
+
+    $("open").disabled = s.booting || s.busy;
+    $("open").textContent = s.busy ? "proving..." : (s.booting ? "wallets syncing..." : "Open position");
+
+    if (s.log && s.log.length){
+      var el = $("log");
+      var atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+      el.textContent = s.log.join("\n");
+      if (atBottom) el.scrollTop = el.scrollHeight;
+    }
+  } catch(e){ $("netTag").textContent = "backend unreachable"; }
+}
+
+$("open").onclick = async function(){
+  $("openErr").textContent = "";
+  $("open").disabled = true; $("open").textContent = "proving...";
+  try{
+    var r = await post("/api/open", {
+      wallet: Number($("wallet").value),
+      side: side,
+      size: Number($("size").value)
+    });
+    if (r.error) $("openErr").textContent = r.error;
+  } catch(e){ $("openErr").textContent = String(e); }
+  refresh();
+};
+
+window.matchIt = async function(id){
+  $("actErr").textContent = "";
+  var sel = $("mw" + id);
+  if (!sel) return;
+  try{
+    var r = await post("/api/match", { target: id, wallet: Number(sel.value) });
+    if (r.error) $("actErr").textContent = r.error;
+  } catch(e){ $("actErr").textContent = String(e); }
+  refresh();
+};
+
+window.coverIt = async function(id){
+  $("actErr").textContent = "";
+  try{
+    var r = await post("/api/cover", { position: id });
+    if (r.error) $("actErr").textContent = r.error;
+  } catch(e){ $("actErr").textContent = String(e); }
+  refresh();
+};
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

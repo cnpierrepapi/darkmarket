@@ -102,4 +102,10 @@ EXPOSE 6300
 EXPOSE 4747
 
 ENV NODE_ENV=development
-CMD ["bunx", "orchestrator", "start", "--config", "start.dev.ts"]
+# The interface and its chain live in one container: a wallet sync holds
+# websockets open for minutes and proving needs a gigabyte of keys.
+RUN cp -r /app/web/. /app/packages/contracts-midnight/public/ 2>/dev/null || true
+RUN cp /app/packages/ui/server.ts /app/packages/ui/evm.ts /app/packages/ui/netting.ts        /app/packages/ui/polymarket.ts /app/packages/ui/target.ts        /app/packages/ui/participants.ts /app/packages/contracts-midnight/ 2>/dev/null || true
+RUN chmod +x /app/scripts/cloud-entrypoint.sh
+
+CMD ["/app/scripts/cloud-entrypoint.sh"]

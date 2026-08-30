@@ -2,5 +2,24 @@
   "name": "@darkmarket/ui",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "bun run server.ts" }
+  "scripts": {
+    "serve": "bun run server.ts"
+  },
+  "dependencies": {
+    "@effectstream/midnight-contracts": "0.200.1",
+    "@evm-midnight/midnight-contract": "workspace:*",
+    "@midnight-ntwrk/compact-js": "2.5.5-rc.7",
+    "@midnight-ntwrk/compact-runtime": "0.19.0",
+    "@midnight-ntwrk/midnight-js-contracts": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-network-id": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-types": "5.0.0-beta.6",
+    "@midnight-ntwrk/midnight-js-utils": "5.0.0-beta.6",
+    "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
+    "@midnightntwrk/onchain-runtime-v4": "4.0.0-rc.3",
+    "@midnightntwrk/wallet-sdk-address-format": "3.1.2",
+    "viem": "2.37.3"
+  }
 }
