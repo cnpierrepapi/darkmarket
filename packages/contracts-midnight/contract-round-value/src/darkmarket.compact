@@ -2,85 +2,109 @@ pragma language_version >= 0.17;
 
 import CompactStandardLibrary;
 
-// DARKMARKET: a dark pool for prediction markets.
+// DARKMARKET: an order book where the orders are sealed.
 //
-// A position size cannot be hidden by adding it to a public total one
-// transaction at a time. The block-to-block delta is the size. Privacy only
-// shows up once several intents are combined before anything is published,
-// so intents are sealed during an epoch and opened together in one call.
+// A position is opened by one wallet and what lands on chain is a commitment:
+// 32 bytes that reveal neither side nor size. It sits there, publicly visible
+// and timestamped by its block, and nobody watching can tell what it is.
 //
-// Note that disclose() is an acknowledgement to the compiler, not an emission.
-// Only final ledger state reaches the chain. Five sizes added inside one
-// transaction leave two totals behind, and the addends are not recoverable.
+// It leaves that state one of two ways. Another wallet matches it, and the two
+// open together in a single proof that checks they take opposite sides. Or
+// nobody does, and liquidity on Polygon covers it instead.
+//
+// disclose() is an acknowledgement to the compiler, not an emission. Only final
+// ledger state reaches the chain, so a matched pair leaves a total behind and
+// the two sizes that made it are not recoverable.
 
-struct Intent {
+struct Position {
   side: Boolean,
   size: Uint<64>,
 }
 
 export ledger round: Counter;
+
 // Polymarket's conditionId: the same 32 bytes its conditional-token contract
-// uses on Polygon. A human-readable slug does not fit in a fixed-width field
-// (they run past 80 characters and get silently truncated), and the condition
-// id is the better key anyway, since it is what both chains actually agree on.
+// uses on Polygon, so both chains key on one identifier.
 export ledger condition_id: Bytes<32>;
 
-// Sealed phase. A commitment says nothing about side or size.
+// Sealed positions. Membership is public, contents are not.
 export ledger commitments: Set<Bytes<32>>;
-export ledger pending: Counter;
 
-// Open phase. The only numbers anyone outside ever sees.
-export ledger yes_notional: Uint<64>;
-export ledger no_notional: Uint<64>;
-export ledger participants: Uint<16>;
-export ledger epoch: Uint<64>;
+export ledger opened: Counter;
+export ledger matched: Counter;
 
-// Sealing happens on the client, so the client needs to compute the same
-// commitment the circuit will later check against. This touches no ledger
-// state, which makes it a pure circuit: callable locally, no transaction,
-// no proof, no trip to the proof server.
-export circuit intent_commitment(
+// Notional that found a counterparty here and never reached the open market.
+export ledger matched_notional: Uint<64>;
+
+// Notional handed to Polygon because nobody here would take the other side.
+export ledger covered_notional: Uint<64>;
+
+/// Compute the commitment for a position without touching the ledger.
+/// Pure, so a client can seal locally: no transaction, no proof server, and
+/// the side and size never leave the machine that holds them.
+export circuit position_commitment(
   side: Boolean,
   size: Uint<64>,
   blind: Bytes<32>,
 ): Bytes<32> {
-  return persistentCommit<Intent>(Intent { side: side, size: size }, blind);
+  return persistentCommit<Position>(Position { side: side, size: size }, blind);
 }
 
-// Seal an intent. The commitment is already opaque, so it goes on the ledger
-// as-is and the side and size stay with the user until the epoch closes.
-export circuit commit_intent(
+/// Open a position. The commitment is already opaque, so it goes on the ledger
+/// as it is and the position's contents stay with whoever opened it.
+export circuit open_position(
   condition_id_: Bytes<32>,
   commitment_: Bytes<32>,
 ): [] {
   condition_id = disclose(condition_id_);
   commitments.insert(disclose(commitment_));
-  pending.increment(1);
+  opened.increment(1);
   round.increment(1);
 }
 
-// Close the epoch. The floor is enforced here, in the circuit, not in a
-// README. Fewer than five sealed intents and this call will not prove.
-export circuit close_epoch(
-  sides: Vector<5, Boolean>,
-  sizes: Vector<5, Uint<64>>,
-  blinds: Vector<5, Bytes<32>>,
+/// Match two open positions against each other.
+///
+/// Both openings are proved against commitments that were sealed earlier, and
+/// the two must take opposite sides or there is nothing to match. What reaches
+/// the chain is one total. Neither size is recoverable from it, and no observer
+/// learns which of the open commitments were the ones consumed.
+export circuit match_positions(
+  side_a: Boolean,
+  size_a: Uint<64>,
+  blind_a: Bytes<32>,
+  side_b: Boolean,
+  size_b: Uint<64>,
+  blind_b: Bytes<32>,
 ): [] {
-  assert(!pending.lessThan(5), "epoch floor not met: fewer than 5 sealed intents");
+  const a = persistentCommit<Position>(Position { side: side_a, size: size_a }, blind_a);
+  const b = persistentCommit<Position>(Position { side: side_b, size: size_b }, blind_b);
 
-  for (const i of 0..5) {
-    const opening = Intent { side: sides[i], size: sizes[i] };
-    const c = persistentCommit<Intent>(opening, blinds[i]);
-    assert(commitments.member(c), "opening does not match any sealed intent");
+  assert(commitments.member(a), "first position was never opened");
+  assert(commitments.member(b), "second position was never opened");
+  assert(disclose(side_a) != disclose(side_b), "both positions take the same side, nothing to match");
 
-    if (disclose(sides[i])) {
-      yes_notional = (yes_notional + disclose(sizes[i])) as Uint<64>;
-    } else {
-      no_notional = (no_notional + disclose(sizes[i])) as Uint<64>;
-    }
-  }
+  // Only the smaller of the two is actually matched; whatever is left over
+  // still needs a counterparty somewhere else.
+  const crossed = (size_a < size_b ? size_a : size_b) as Uint<64>;
+  matched_notional = (matched_notional + disclose(crossed)) as Uint<64>;
 
-  participants = 5;
-  epoch = (epoch + 1) as Uint<64>;
+  matched.increment(1);
+  round.increment(1);
+}
+
+/// Record that liquidity elsewhere covered an open position.
+///
+/// The cover itself happens on Polygon. This writes the amount to Midnight's
+/// ledger so the two chains can be lined up: the same number should appear in
+/// the vault's settlement for this contract.
+export circuit mark_covered(
+  size: Uint<64>,
+  blind: Bytes<32>,
+  side: Boolean,
+): [] {
+  const c = persistentCommit<Position>(Position { side: side, size: size }, blind);
+  assert(commitments.member(c), "position was never opened");
+
+  covered_notional = (covered_notional + disclose(size)) as Uint<64>;
   round.increment(1);
 }

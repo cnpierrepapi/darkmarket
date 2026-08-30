@@ -13,11 +13,11 @@ import { privateKeyToAccount } from "viem/accounts";
 import { polygonAmoy } from "viem/chains";
 
 export const VAULT_ABI = parseAbi([
-  "function settleResidual(bytes32 midnightContract, uint64 epoch, bytes32 conditionId, uint8 side, uint256 size, uint256 crossed)",
+  "function settleResidual(uint64 epoch, bytes32 conditionId, uint8 side, uint256 size, uint256 crossed)",
   "function totalDeposits() view returns (uint256)",
   "function committed() view returns (uint256)",
   "function freeCollateral() view returns (uint256)",
-  "function settled(bytes32, uint64) view returns (bool)",
+  "function epochSettled(uint64) view returns (bool)",
 ]);
 
 export type EvmConfig = {
@@ -56,7 +56,6 @@ export type SettleResult = {
 };
 
 export async function settleOnPolygon(args: {
-  midnightContract: string;
   epoch: number;
   conditionId: string;
   side: "YES" | "NO";
@@ -87,25 +86,21 @@ export async function settleOnPolygon(args: {
     throw new Error(`residual ${sizeWei} exceeds free collateral ${free}; deposit more`);
   }
 
-  // Keyed on the Midnight contract too: every Midnight contract starts at
-  // epoch 1, so the epoch alone collides across deployments.
-  const mc = `0x${args.midnightContract.replace(/^0x/, "")}` as `0x${string}`;
+  // The deployed vault keys settlements on the epoch number alone, so each
+  // cover has to pass a number nobody has used yet. The caller supplies it.
   const already = (await pub.readContract({
     address: cfg.vault,
     abi: VAULT_ABI,
-    functionName: "settled",
-    args: [mc, BigInt(args.epoch)],
+    functionName: "epochSettled",
+    args: [BigInt(args.epoch)],
   })) as boolean;
-  if (already) {
-    throw new Error(`epoch ${args.epoch} of ${args.midnightContract.slice(0, 10)} already settled`);
-  }
+  if (already) throw new Error(`settlement slot ${args.epoch} is already used`);
 
   const txHash = await wallet.writeContract({
     address: cfg.vault,
     abi: VAULT_ABI,
     functionName: "settleResidual",
     args: [
-      mc,
       BigInt(args.epoch),
       args.conditionId as `0x${string}`,
       args.side === "YES" ? 0 : 1,

@@ -15,9 +15,9 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
     font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif}
-  a{color:inherit}
+  a{color:var(--acc)}
   header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:9}
-  .bar{max-width:1120px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:18px}
+  .bar{max-width:1180px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px}
   .logo{font-size:17px;letter-spacing:.16em;font-weight:700}
   .badge{padding:3px 8px;border-radius:5px;font-size:10.5px;letter-spacing:.09em;
     background:var(--panel2);border:1px solid var(--line);color:var(--dim);
@@ -26,80 +26,63 @@
   nav button{background:none;border:0;color:var(--dim);padding:8px 13px;border-radius:7px;
     cursor:pointer;font-size:13.5px;font-weight:500}
   nav button.on{background:var(--panel2);color:var(--ink)}
-  main{max-width:1120px;margin:0 auto;padding:26px 24px 70px}
-  .tab{display:none}
-  .tab.on{display:block}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+  main{max-width:1180px;margin:0 auto;padding:24px}
+  .tab{display:none} .tab.on{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
   h2{font-size:11px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;
     margin:0 0 12px;font-weight:600}
-  .lede{color:var(--dim);max-width:660px;margin:0 0 22px}
+  .lede{color:var(--dim);max-width:680px;margin:0 0 20px}
+  .cols{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
 
-  /* market */
-  .mkt{display:grid;grid-template-columns:1fr 330px;gap:22px;align-items:start}
-  @media(max-width:880px){.mkt{grid-template-columns:1fr}}
-  .qrow{display:flex;gap:16px;align-items:flex-start}
-  .thumb{width:56px;height:56px;border-radius:9px;flex:none;
-    background:linear-gradient(135deg,#1f2a3a,#2d7ff9 180%);border:1px solid var(--line)}
-  .q{font-size:21px;font-weight:600;line-height:1.3;margin:0}
-  .meta{display:flex;gap:14px;color:var(--dim);font-size:12.5px;margin-top:9px;flex-wrap:wrap}
-  .odds{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
-  .odd{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel2)}
-  .odd .side{font-size:12px;color:var(--dim);letter-spacing:.08em}
-  .odd .pct{font-size:29px;font-weight:700;font-family:ui-monospace,monospace;margin-top:3px}
+  .q{font-size:19px;font-weight:600;line-height:1.3;margin:0 0 10px}
+  .odds{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}
+  .odd{border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--panel2)}
+  .odd .side{font-size:11.5px;color:var(--dim);letter-spacing:.08em}
+  .odd .pct{font-size:25px;font-weight:700;font-family:ui-monospace,monospace}
   .odd.y .pct{color:var(--yes)} .odd.n .pct{color:var(--no)}
-  .buy{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0 0}
-  .buy button{padding:13px;border-radius:9px;border:1px solid transparent;cursor:pointer;
-    font-weight:650;font-size:14px}
-  .buy .y{background:var(--yes-bg);color:var(--yes);border-color:rgba(39,174,138,.35)}
-  .buy .n{background:var(--no-bg);color:var(--no);border-color:rgba(224,82,95,.35)}
-  .buy button.sel{outline:2px solid currentColor;outline-offset:-2px}
-  input{width:100%;padding:12px;border-radius:9px;border:1px solid var(--line);
-    background:#0f131b;color:var(--ink);font-size:16px;font-family:ui-monospace,monospace;
-    margin-top:10px}
-  .cta{width:100%;margin-top:11px;padding:14px;border-radius:9px;border:0;background:var(--acc);
+
+  label{display:block;font-size:11.5px;color:var(--dim);letter-spacing:.08em;
+    text-transform:uppercase;margin:14px 0 6px}
+  select,input{width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);
+    background:#0f131b;color:var(--ink);font-size:15px;font-family:ui-monospace,monospace}
+  .sides{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .sides button{padding:12px;border-radius:9px;border:1px solid var(--line);
+    background:transparent;color:var(--dim);cursor:pointer;font-weight:650;font-size:14px}
+  .sides button.sel[data-s="YES"]{background:var(--yes-bg);color:var(--yes);border-color:rgba(39,174,138,.4)}
+  .sides button.sel[data-s="NO"]{background:var(--no-bg);color:var(--no);border-color:rgba(224,82,95,.4)}
+  .cta{width:100%;margin-top:14px;padding:13px;border-radius:9px;border:0;background:var(--acc);
     color:#fff;font-weight:650;font-size:14.5px;cursor:pointer}
   .cta:disabled{opacity:.35;cursor:not-allowed}
-  .diff{margin-top:14px;padding:12px;border-radius:9px;background:rgba(45,127,249,.09);
-    border:1px solid rgba(45,127,249,.25);color:#a8c8ff;font-size:12.5px}
 
-  /* generic */
-  .row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0}
+  .pos{border:1px solid var(--line);border-radius:10px;padding:13px;background:var(--panel2);
+    margin-bottom:10px}
+  .pos .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{padding:2px 8px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;
+    border:1px solid var(--line)}
+  .pill.YES{color:var(--yes);border-color:rgba(39,174,138,.4)}
+  .pill.NO{color:var(--no);border-color:rgba(224,82,95,.4)}
+  .mono{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
+    overflow-wrap:anywhere}
+  .acts{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+  .acts button{padding:8px 13px;border-radius:8px;border:0;cursor:pointer;font-size:13px;
+    font-weight:600}
+  .acts .m{background:var(--yes);color:#04231a}
+  .acts .c{background:var(--warn);color:#1a1200}
+  .acts select{width:auto;padding:7px 9px;font-size:12.5px}
+  .acts button:disabled{opacity:.35;cursor:not-allowed}
+  .empty{color:var(--dim);font-size:13px;padding:8px 0}
+  .row{display:flex;justify-content:space-between;padding:7px 0}
   .row + .row{border-top:1px solid var(--line)}
   .k{color:var(--dim);font-size:13px}
   .v{font-family:ui-monospace,monospace;font-size:13.5px}
-  .note{color:var(--dim);font-size:12.5px;margin-top:12px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
-  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
-  .p{display:flex;align-items:center;gap:11px;padding:10px 0}
-  .p + .p{border-top:1px solid var(--line)}
-  .dot{width:8px;height:8px;border-radius:99px;background:#3a4252;flex:none}
-  .dot.on{background:var(--yes)}
-  .addr{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .want{font-family:ui-monospace,monospace;font-size:11.5px;margin-left:auto;flex:none;
-    padding:2px 7px;border-radius:5px;background:var(--panel2);border:1px solid var(--line)}
-  .big{font-size:31px;font-family:ui-monospace,monospace}
-  .yes{color:var(--yes)} .no{color:var(--no)}
-  .bar2{height:32px;border-radius:8px;overflow:hidden;display:flex;margin:13px 0 8px;
-    border:1px solid var(--line);background:#0f131b}
-  .bar2 div{display:flex;align-items:center;justify-content:center;font-size:11.5px;
-    font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden}
-  .crossed{background:rgba(45,127,249,.24);color:#a8c8ff}
-  .exposed{background:rgba(240,166,58,.22);color:#ffd79a}
-  .hero{font-size:46px;font-family:ui-monospace,monospace;line-height:1}
   .log{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
-    background:#0f131b;border:1px solid var(--line);border-radius:9px;padding:12px;
-    height:230px;overflow:auto;white-space:pre-wrap}
-  .err{color:var(--no);font-size:12.5px;margin-top:10px;font-family:ui-monospace,monospace}
-  .vs{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);
-    border-radius:10px;overflow:hidden}
-  @media(max-width:880px){.vs{grid-template-columns:1fr}}
-  .vs > div{padding:18px}
-  .vs .left{background:var(--panel2);border-right:1px solid var(--line)}
-  .vs h3{margin:0 0 12px;font-size:13px;font-weight:600}
-  .leak{color:var(--no)} .keep{color:var(--yes)}
-  ul.plain{margin:0;padding-left:17px;color:var(--dim);font-size:13px}
-  ul.plain li{margin:5px 0}
+    background:#0f131b;border:1px solid var(--line);border-radius:9px;padding:11px;
+    height:200px;overflow:auto;white-space:pre-wrap}
+  .err{color:var(--no);font-size:12.5px;margin-top:9px;font-family:ui-monospace,monospace}
+  .note{color:var(--dim);font-size:12.5px;margin-top:10px}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:1000px){.three{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -107,151 +90,110 @@
   <div class="bar">
     <span class="logo">DARKMARKET</span>
     <span class="badge" id="netTag">-</span>
+    <span class="badge" id="walletTag">-</span>
     <nav>
-      <button class="on" data-t="market">Market</button>
-      <button data-t="pool">The pool</button>
+      <button class="on" data-t="trade">Trade</button>
+      <button data-t="book">Positions</button>
       <button data-t="chain">What the chain sees</button>
-      <button data-t="settle">Settlement</button>
     </nav>
   </div>
 </header>
 
 <main>
-  <!-- MARKET -->
-  <section class="tab on" id="t-market">
-    <div class="mkt">
+  <section class="tab on" id="t-trade">
+    <div class="cols">
       <div class="card">
-        <div class="qrow">
-          <div class="thumb"></div>
-          <div>
-            <p class="q" id="q">Will there be no change in Fed interest rates after the September 2026 meeting?</p>
-            <div class="meta">
-              <span id="mVol">volume -</span>
-              <span id="mEnd">-</span>
-              <span class="badge" id="mCond">-</span>
-            </div>
-          </div>
+        <h2>Open a position</h2>
+        <label>Wallet</label>
+        <select id="wallet"></select>
+        <label>Side</label>
+        <div class="sides">
+          <button data-s="YES" class="sel" id="sYES">YES</button>
+          <button data-s="NO" id="sNO">NO</button>
         </div>
-
-        <div class="odds">
-          <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
-          <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
-        </div>
-
+        <label>Size</label>
+        <input id="size" type="number" min="1" value="500">
+        <button class="cta" id="open">Open position</button>
         <div class="note">
-          Prices are live from Polymarket. This is the same market, the same book,
-          the same token ids.
+          What reaches Midnight is a commitment. Nobody watching the chain can
+          tell your side or your size, only that a position exists and when.
         </div>
+        <div class="err" id="openErr"></div>
       </div>
 
-      <div class="card">
-        <h2>Take a position</h2>
-        <div class="buy">
-          <button class="y sel" id="bY">Buy YES</button>
-          <button class="n" id="bN">Buy NO</button>
+      <div>
+        <div class="card">
+          <p class="q" id="q">loading market...</p>
+          <div class="odds">
+            <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
+            <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
+          </div>
+          <div class="row"><span class="k">condition id</span><span class="v" id="cond">-</span></div>
+          <div class="row"><span class="k">midnight contract</span><span class="v" id="mc">-</span></div>
         </div>
-        <input id="amt" type="number" min="1" value="500" placeholder="amount in USDC">
-        <button class="cta" id="add">Add to the pool</button>
-        <div class="diff">
-          On Polymarket this order goes straight to the public book, where anyone
-          can read your side and size before you are filled. Here it goes into an
-          epoch instead, and the book never sees it unless it fails to match.
+
+        <div class="card" style="margin-top:16px">
+          <h2>Open orders you can act on</h2>
+          <div id="openList"><div class="empty">Nothing open yet.</div></div>
+          <div class="err" id="actErr"></div>
         </div>
-        <div class="err" id="addErr"></div>
       </div>
     </div>
   </section>
 
-  <!-- POOL -->
-  <section class="tab" id="t-pool">
+  <section class="tab" id="t-book">
     <p class="lede">
-      Five funded Midnight wallets, five real addresses on preprod. Each seals its
-      own intent with its own key and pays its own fee, so the five on the ledger
-      are five wallets rather than one wallet counting.
+      Every position and where it ended up. A matched pair never reached the open
+      market at all. A covered one did, and left a transaction on Polygon.
     </p>
-    <div class="grid2">
-      <div class="card" id="pcard"><div class="note">loading...</div></div>
+    <div class="three">
+      <div>
+        <h2>Open</h2>
+        <div class="card" id="colOpen"><div class="empty">none</div></div>
+      </div>
+      <div>
+        <h2>Matched on Midnight</h2>
+        <div class="card" id="colMatched"><div class="empty">none</div></div>
+      </div>
+      <div>
+        <h2>Covered on Polygon</h2>
+        <div class="card" id="colCovered"><div class="empty">none</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="t-chain">
+    <p class="lede">
+      The difference is not what this page shows you. It is what is left on a
+      public chain afterwards.
+    </p>
+    <div class="cols">
+      <div class="card">
+        <h2>On Midnight, publicly</h2>
+        <div class="row"><span class="k">positions opened</span><span class="v" id="cOpened">0</span></div>
+        <div class="row"><span class="k">matches</span><span class="v" id="cMatched">0</span></div>
+        <div class="row"><span class="k">matched notional</span><span class="v" id="cMN">0</span></div>
+        <div class="row"><span class="k">covered notional</span><span class="v" id="cCN">0</span></div>
+        <div class="row"><span class="k">calls</span><span class="v" id="cCalls">0</span></div>
+        <div class="note">
+          Counts and totals. Not one individual side or size, and no link from a
+          commitment back to the wallet that opened it.
+        </div>
+      </div>
       <div class="card">
         <h2>Live</h2>
         <div class="log" id="log">waiting...</div>
       </div>
     </div>
   </section>
-
-  <!-- CHAIN -->
-  <section class="tab" id="t-chain">
-    <p class="lede">
-      The difference is not what the interface shows you. It is what is left on a
-      public chain afterwards.
-    </p>
-    <div class="vs">
-      <div class="left">
-        <h3 class="leak">On Polymarket, publicly</h3>
-        <ul class="plain">
-          <li>every order, as it is placed</li>
-          <li>which side each wallet took</li>
-          <li>how much each wallet staked</li>
-          <li>the wallet address behind each position</li>
-          <li>your position before you are filled</li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="keep">On Midnight, publicly</h3>
-        <div class="row"><span class="k">YES total</span><span class="v yes" id="cy">0</span></div>
-        <div class="row"><span class="k">NO total</span><span class="v no" id="cn">0</span></div>
-        <div class="row"><span class="k">participants</span><span class="v" id="cp">0</span></div>
-        <div class="row"><span class="k">epoch</span><span class="v" id="ce">0</span></div>
-        <div class="row"><span class="k">contract</span><span class="v" id="cc">-</span></div>
-        <div class="note" id="cNote">Two numbers. That is the whole disclosure.</div>
-      </div>
-    </div>
-    <div class="card" style="margin-top:20px">
-      <h2>During the sealed phase</h2>
-      <div class="note" style="margin:0">
-        Before an epoch closes the ledger holds commitments and two zeros. A
-        commitment is 32 bytes and cannot be worked backwards, so an observer
-        watching every block still cannot tell whether anyone bought YES.
-      </div>
-      <div class="row" style="margin-top:12px"><span class="k">sealed this epoch</span>
-        <span class="v" id="cs">0</span></div>
-    </div>
-  </section>
-
-  <!-- SETTLEMENT -->
-  <section class="tab" id="t-settle">
-    <p class="lede">
-      Opposing positions cancel inside the pool. Only the difference is sent out,
-      so the public tape sees one order instead of five.
-    </p>
-    <div class="grid2">
-      <div class="card">
-        <h2>Crossing</h2>
-        <div class="bar2" id="bar"><div class="crossed" style="flex:1">no epoch yet</div></div>
-        <div class="row"><span class="k">matched inside the pool</span><span class="v" id="sc">0</span></div>
-        <div class="row"><span class="k">sent to Polymarket</span><span class="v" id="se">0</span></div>
-        <div style="margin-top:16px">
-          <div class="k">kept private</div>
-          <div class="hero" id="sp">0<span style="font-size:21px">%</span></div>
-        </div>
-      </div>
-      <div class="card" id="order">
-        <h2>The order that reaches the book</h2>
-        <div class="note">Run an epoch to see what leaks out.</div>
-      </div>
-    </div>
-  </section>
-  <footer style="max-width:1120px;margin:0 auto;padding:0 24px 40px;color:#8b95a7;font-size:12px">
-    Contract <span id="fc">-</span> on Midnight preprod.
-    Source at <a href="https://github.com/cnpierrepapi/darkmarket">github.com/cnpierrepapi/darkmarket</a>.
-  </footer>
 </main>
 
 <script src="config.js"></script>
 <script>
 var API = (window.DARKMARKET_API || "").replace(/\/$/, "");
 function $(id){ return document.getElementById(id); }
-var WANT = ["YES 500","YES 200","NO 100","YES 100","NO 200"];
-var side = true;
+var side = "YES";
+var walletCount = 5;
 
 var tabs = document.querySelectorAll("nav button");
 for (var i=0;i<tabs.length;i++){
@@ -264,110 +206,140 @@ for (var i=0;i<tabs.length;i++){
   };})(tabs[i]);
 }
 
-$("bY").onclick = function(){ side = true; $("bY").classList.add("sel"); $("bN").classList.remove("sel"); };
-$("bN").onclick = function(){ side = false; $("bN").classList.add("sel"); $("bY").classList.remove("sel"); };
-$("add").onclick = function(){
-  $("addErr").textContent = "Positions for this demo are the five preset participants. Open The pool to run the epoch.";
-};
+$("sYES").onclick = function(){ side="YES"; $("sYES").classList.add("sel"); $("sNO").classList.remove("sel"); };
+$("sNO").onclick  = function(){ side="NO";  $("sNO").classList.add("sel");  $("sYES").classList.remove("sel"); };
 
-async function api(p, o){ var r = await fetch(API + p, o); return await r.json(); }
+async function api(path, opts){
+  var r = await fetch(API + path, opts);
+  return await r.json();
+}
+function post(path, body){
+  return api(path, { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body) });
+}
+function shortTime(iso){ return iso ? iso.slice(11,19) + "Z" : ""; }
+
+function positionCard(p, showActs){
+  var h = '<div class="pos"><div class="top">' +
+    '<span class="pill ' + p.side + '">' + p.side + ' ' + p.size + '</span>' +
+    '<span class="mono">wallet ' + p.wallet + '</span>' +
+    '<span class="mono">#' + p.id + '</span></div>' +
+    '<div class="mono" style="margin-top:7px">commitment ' + p.commitment.slice(0,26) + '...</div>' +
+    '<div class="mono">opened block ' + p.openedBlock + ' at ' + shortTime(p.openedAt) + '</div>';
+  if (p.status === "matched"){
+    h += '<div class="mono">matched with #' + p.matchedWith + ' in block ' + p.matchedBlock +
+         ' at ' + shortTime(p.matchedAt) + '</div>';
+  }
+  if (p.status === "covered" && p.cover){
+    h += '<div class="mono">covered ' + shortTime(p.cover.at) + ' &middot; ' +
+         '<a href="' + p.cover.explorerUrl + '" target="_blank" rel="noreferrer">' +
+         p.cover.txHash.slice(0,18) + '...</a></div>';
+  }
+  if (showActs && p.status === "open"){
+    var opts = "";
+    for (var k=0;k<walletCount;k++){
+      if (k === p.wallet) continue;
+      opts += '<option value="' + k + '">wallet ' + k + '</option>';
+    }
+    h += '<div class="acts">' +
+         '<select id="mw' + p.id + '">' + opts + '</select>' +
+         '<button class="m" onclick="matchIt(' + p.id + ')">Match</button>' +
+         '<button class="c" onclick="coverIt(' + p.id + ')">Cover on Polygon</button>' +
+         '</div>';
+  }
+  return h + '</div>';
+}
 
 async function refresh(){
   try{
     var s = await api("/api/state");
+    walletCount = s.wallets.length;
     $("netTag").textContent = s.network;
-    try{ $("fc").textContent = s.contract.slice(0,12)+"..."+s.contract.slice(-6); }catch(e){}
-    $("cc").textContent = s.contract.slice(0,10) + "..." + s.contract.slice(-6);
-    $("cy").textContent = s.chain.yes;
-    $("cn").textContent = s.chain.no;
-    $("cp").textContent = s.chain.participants;
-    $("ce").textContent = s.chain.epoch;
-    $("cs").textContent = s.chain.sealed;
-    $("mCond").textContent = (s.chain.conditionId || "").slice(0,10) + "...";
+    var ready = s.wallets.filter(function(w){ return w.ready; }).length;
+    $("walletTag").textContent = ready + "/" + s.wallets.length + " wallets";
+    $("cond").textContent = (s.conditionId||"").slice(0,12) + "..." + (s.conditionId||"").slice(-6);
+    $("mc").textContent = (s.contract||"").slice(0,10) + "..." + (s.contract||"").slice(-6);
 
-    var ready = 0, html = "";
-    for (var i=0;i<s.participants.length;i++){
-      var p = s.participants[i];
-      if (p.ready) ready++;
-      html += '<div class="p"><span class="dot' + (p.ready?" on":"") + '"></span>' +
-        '<span class="addr">' + (p.address || ("participant " + i + " - syncing")) + '</span>' +
-        '<span class="want">' + WANT[i] + '</span></div>';
-    }
-    html += '<button class="cta" id="run"' +
-      ((ready === s.floor && !s.running && !s.booting) ? "" : " disabled") + '>' +
-      (s.running ? "running..." : "Run the epoch") + '</button>';
-    html += '<div class="note">' + (s.booting
-      ? "Syncing wallets. All five run at once."
-      : ready === s.floor ? "All five funded and synced. One click seals five intents and closes the epoch."
-      : ready + " of " + s.floor + " wallets ready.") + '</div><div class="err" id="runErr"></div>';
-    $("pcard").innerHTML = html;
-    $("run").onclick = runEpoch;
-
-    var closed = Number(s.chain.yes) + Number(s.chain.no) > 0;
-    $("cNote").textContent = closed
-      ? "Two numbers. The five sizes that made them are not recoverable from this state."
-      : "Two numbers. That is the whole disclosure.";
-
-    var cr = Number(s.residual.crossed), ex = Number(s.residual.size);
-    $("sc").textContent = cr;
-    $("se").textContent = ex ? ex + " " + s.residual.side : "0";
-    $("sp").innerHTML = s.shielded.toFixed(2) + '<span style="font-size:21px">%</span>';
-    var tot = cr*2 + ex;
-    if (tot > 0){
-      var b = "";
-      if (cr > 0) b += '<div class="crossed" style="flex:' + (cr*2/tot*100) + '">matched inside - ' + (cr*2) + '</div>';
-      if (ex > 0) b += '<div class="exposed" style="flex:' + (ex/tot*100) + '">public - ' + ex + '</div>';
-      $("bar").innerHTML = b;
+    var sel = $("wallet");
+    if (sel.options.length !== s.wallets.length){
+      sel.innerHTML = "";
+      for (var i=0;i<s.wallets.length;i++){
+        var w = s.wallets[i];
+        var o = document.createElement("option");
+        o.value = w.index;
+        o.textContent = "wallet " + w.index + (w.ready ? "" : " (syncing)") +
+          (w.address ? " - " + w.address.slice(0,22) + "..." : "");
+        sel.appendChild(o);
+      }
     }
 
-    window.__SETTLEMENT = s.settlement || null;
+    if (s.market){
+      $("q").textContent = s.market.question || "";
+      $("oy").textContent = Math.round(s.market.yesPrice*100) + "¢";
+      $("on_").textContent = Math.round(s.market.noPrice*100) + "¢";
+    }
+
+    $("cOpened").textContent = s.chain.opened;
+    $("cMatched").textContent = s.chain.matched;
+    $("cMN").textContent = s.chain.matchedNotional;
+    $("cCN").textContent = s.chain.coveredNotional;
+    $("cCalls").textContent = s.chain.calls;
+
+    var opens = s.positions.filter(function(p){ return p.status==="open"; });
+    var matched = s.positions.filter(function(p){ return p.status==="matched"; });
+    var covered = s.positions.filter(function(p){ return p.status==="covered"; });
+
+    $("openList").innerHTML = opens.length
+      ? opens.map(function(p){ return positionCard(p, true); }).join("")
+      : '<div class="empty">Nothing open yet. Open one on the left.</div>';
+    $("colOpen").innerHTML = opens.length ? opens.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
+    $("colMatched").innerHTML = matched.length ? matched.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
+    $("colCovered").innerHTML = covered.length ? covered.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
+
+    $("open").disabled = s.booting || s.busy;
+    $("open").textContent = s.busy ? "proving..." : (s.booting ? "wallets syncing..." : "Open position");
+
     if (s.log && s.log.length){
       var el = $("log");
       var atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
       el.textContent = s.log.join("\n");
       if (atBottom) el.scrollTop = el.scrollHeight;
     }
-    loadOrder(closed);
   } catch(e){ $("netTag").textContent = "backend unreachable"; }
 }
 
-async function loadOrder(closed){
+$("open").onclick = async function(){
+  $("openErr").textContent = "";
+  $("open").disabled = true; $("open").textContent = "proving...";
   try{
-    var r = await api("/api/order");
-    if (r.market){
-      $("q").textContent = r.market.question || $("q").textContent;
-      $("oy").textContent = Math.round(r.market.yesPrice*100) + "¢";
-      $("on_").textContent = Math.round(r.market.noPrice*100) + "¢";
-    }
-    if (!closed) return;
-    if (r.error){ $("order").innerHTML = '<h2>The order that reaches the book</h2><div class="err">' + r.error + '</div>'; return; }
-    if (r.crossed){
-      $("order").innerHTML = '<h2>The order that reaches the book</h2><div class="note">Fully crossed. Nothing reaches Polymarket at all.</div>';
-      return;
-    }
-    var o = r.order;
-    $("order").innerHTML = '<h2>The order that reaches the book</h2>' +
-      '<div class="row"><span class="k">side</span><span class="v ' + (o.outcome==="YES"?"yes":"no") + '">' + o.outcome + '</span></div>' +
-      '<div class="row"><span class="k">price</span><span class="v">' + o.price + '</span></div>' +
-      '<div class="row"><span class="k">size</span><span class="v">' + o.sizeUsdc + ' USDC</span></div>' +
-      '<div class="row"><span class="k">shares</span><span class="v">~' + o.shares + '</span></div>' +
-      '<div class="row"><span class="k">token</span><span class="v">' + o.tokenId.slice(0,16) + '...</span></div>' +
-      '<div class="note">Live price from Polymarket. The order is computed, not signed.</div>' +
-      (window.__SETTLEMENT ? '<div class="row"><span class="k">settled on Polygon</span><span class="v"><a href="' +
-        window.__SETTLEMENT.explorerUrl + '" target="_blank" rel="noreferrer">' +
-        window.__SETTLEMENT.txHash.slice(0,12) + '...</a></span></div>' : '');
-  } catch(e){}
-}
-
-async function runEpoch(){
-  $("runErr").textContent = "";
-  $("run").disabled = true; $("run").textContent = "running...";
-  try{
-    var r = await api("/api/run", { method:"POST" });
-    if (r.error) $("runErr").textContent = r.error;
-  } catch(e){ $("runErr").textContent = String(e); }
+    var r = await post("/api/open", {
+      wallet: Number($("wallet").value),
+      side: side,
+      size: Number($("size").value)
+    });
+    if (r.error) $("openErr").textContent = r.error;
+  } catch(e){ $("openErr").textContent = String(e); }
   refresh();
-}
+};
+
+window.matchIt = async function(id){
+  $("actErr").textContent = "";
+  var sel = $("mw" + id);
+  if (!sel) return;
+  try{
+    var r = await post("/api/match", { target: id, wallet: Number(sel.value) });
+    if (r.error) $("actErr").textContent = r.error;
+  } catch(e){ $("actErr").textContent = String(e); }
+  refresh();
+};
+
+window.coverIt = async function(id){
+  $("actErr").textContent = "";
+  try{
+    var r = await post("/api/cover", { position: id });
+    if (r.error) $("actErr").textContent = r.error;
+  } catch(e){ $("actErr").textContent = String(e); }
+  refresh();
+};
 
 refresh();
 setInterval(refresh, 4000);

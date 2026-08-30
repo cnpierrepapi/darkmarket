@@ -1,13 +1,18 @@
 // DARKMARKET backend.
 //
-// Five separate Midnight wallets, five real addresses, five real balances.
-// Each participant seals its own intent with its own key and pays its own fee,
-// so "5 participants" on the ledger means five wallets and not one wallet
-// counting to five.
+// Five funded Midnight wallets, each with its own key, its own database and its
+// own balance. A wallet opens a position and what reaches the chain is a
+// commitment: 32 bytes revealing neither side nor size, sitting there publicly
+// and timestamped by its block.
 //
-// Every wallet is built and synced once at boot, which is slow and is the whole
-// reason this cannot be a serverless function. After that a run is just proving
-// and submitting.
+// A position leaves that state one of two ways. Another wallet matches it, and
+// both open together in a single proof that checks they take opposite sides.
+// Or nobody here will take the other side, and liquidity on Polygon covers it
+// instead, which leaves a transaction on Polygonscan.
+//
+// Wallets are built and synced once at boot, which is slow and is why this
+// cannot be a serverless function. After that a click is proving and nothing
+// else.
 
 import "./target.ts";
 import "@midnightntwrk/onchain-runtime-v4";
@@ -20,22 +25,18 @@ import {
   registerNightForDust,
   suspendAuxWalletSyncForFees,
   configureMidnightNodeProviders,
-  readMidnightContract,
   midnightNetworkConfig,
 } from "@effectstream/midnight-contracts";
 import { findDeployedContract } from "@midnight-ntwrk/midnight-js-contracts";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
-import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
-import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import * as Contract from "@evm-midnight/midnight-contract/contract";
-import { netOff, shieldedFraction, type Aggregate } from "./netting.ts";
-import { resolveMarket, buildOrder } from "./polymarket.ts";
-import { allSeeds, allSeedsFromMaster, readLocalEnv, PARTICIPANTS, INTENTS } from "./participants.ts";
+import { resolveMarket } from "./polymarket.ts";
 import { settleOnPolygon, evmConfig, type SettleResult } from "./evm.ts";
+import { allSeeds, allSeedsFromMaster, readLocalEnv, PARTICIPANTS } from "./participants.ts";
 
-const NETWORK = process.env.MIDNIGHT_NETWORK_ID ?? "preprod";
+const NETWORK = process.env.MIDNIGHT_NETWORK_ID ?? "undeployed";
 const PORT = Number(process.env.PORT ?? 8080);
 const CONDITION_ID = process.env.DARKMARKET_CONDITION_ID ??
   "0xa3b36b2d6104d34af4e6c6215fc818e43352e78a748fbfb0b85e3a35f71dec9a";
@@ -44,65 +45,64 @@ const hex32 = (h: string) => new Uint8Array(Buffer.from(h.replace(/^0x/, ""), "h
 const toHex = (b: Uint8Array) => "0x" + Buffer.from(b).toString("hex");
 const isZero = (b: Uint8Array) => b.every((x) => x === 0);
 
-type Participant = {
-  index: number;
-  address: string;
-  dustAddress: string;
-  contract: Awaited<ReturnType<typeof findDeployedContract>>;
-  ready: boolean;
-};
-
 const log: string[] = [];
 const say = (s: string) => {
-  const line = `${new Date().toISOString().slice(11, 19)}  ${s}`;
-  log.push(line);
-  if (log.length > 200) log.shift();
+  log.push(`${new Date().toISOString().slice(11, 19)}  ${s}`);
+  if (log.length > 300) log.shift();
   console.log("[darkmarket]", s);
 };
 
-// The contract address is passed in. readMidnightContract is only a fallback,
-// because it hunts the filesystem for a record file that is written at deploy
-// time and is not in the image: relying on it crashes the container at boot.
-const address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT ?? (() => {
-  try {
-    return readMidnightContract("contract-round-value", { networkId: NETWORK }).contractAddress;
-  } catch {
-    return undefined;
-  }
-})();
-if (!address) throw new Error("no contract address: pass one as an argument or set DARKMARKET_CONTRACT");
-
-// Local runs off the chain's own genesis wallet; a real network runs off the
-// mnemonic. Participant 0 has to be whichever one actually holds funds.
 const isLocal = NETWORK === "undeployed";
 const mnemonic = readLocalEnv("MIDNIGHT_WALLET_MNEMONIC");
 if (!mnemonic && !isLocal) throw new Error("no MIDNIGHT_WALLET_MNEMONIC");
+
+const address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT;
+if (!address) throw new Error("no contract address: pass one as an argument");
+
+const zkConfigPath = process.env.DARKMARKET_ZK_CONFIG ??
+  "/app/packages/contracts-midnight/contract-round-value/src/managed";
 
 const net = midnightNetworkConfig;
 const urls = {
   id: net.id, indexer: net.indexer, indexerWS: net.indexerWS,
   node: net.node, proofServer: net.proofServer,
 };
-// Same for the proving keys. They ship in the image at a known path, so look
-// there first and only fall back to the search.
-const zkConfigPath = process.env.DARKMARKET_ZK_CONFIG ??
-  "/app/packages/contracts-midnight/contract-round-value/src/managed";
 const seeds = isLocal ? allSeedsFromMaster(net.walletSeed!) : allSeeds(mnemonic!);
 
-const participants: (Participant | undefined)[] = new Array(PARTICIPANTS).fill(undefined);
-const readyCount = () => participants.filter(Boolean).length;
-let bootError: string | null = null;
-let lastSettlement: SettleResult | null = null;
-let booting = true;
-let running = false;
+type Wallet = {
+  index: number;
+  address: string;
+  contract: Awaited<ReturnType<typeof findDeployedContract>>;
+};
 
-// Boot all five wallets at once, not one after another. A preprod sync takes
-// about twenty minutes, so sequential boot would be nearly two hours of cold
-// start. In parallel it is twenty minutes for all five.
-//
-// The sync also dies silently: the process stays alive and the stream simply
-// stops. So each wallet gets its own retries rather than one failure taking
-// the whole demo down.
+type Position = {
+  id: number;
+  wallet: number;
+  walletAddress: string;
+  side: "YES" | "NO";
+  size: number;
+  commitment: string;
+  blind: string;
+  openedBlock: number;
+  openedAt: string;
+  status: "open" | "matched" | "covered";
+  matchedWith?: number;
+  matchedBlock?: number;
+  matchedAt?: string;
+  cover?: SettleResult & { at: string };
+};
+
+const wallets: (Wallet | undefined)[] = new Array(PARTICIPANTS).fill(undefined);
+const readyCount = () => wallets.filter(Boolean).length;
+const positions: Position[] = [];
+let nextId = 1;
+// The deployed vault keys settlements on a number and slot 1 is already used,
+// so covers start above it.
+let nextCoverSlot = Number(process.env.EVM_START_SLOT ?? "2");
+let booting = true;
+let busy = false;
+let bootError: string | null = null;
+
 const ownPrivateState = (index: number, coinPublicKey: Uint8Array) =>
   levelPrivateStateProvider({
     midnightDbName: `midnight-level-db-p${index}`,
@@ -113,119 +113,100 @@ const ownPrivateState = (index: number, coinPublicKey: Uint8Array) =>
     accountId: Buffer.from(coinPublicKey).toString("hex"),
   } as never);
 
-const BOOT_ATTEMPTS = Number(process.env.DARKMARKET_BOOT_ATTEMPTS ?? "4");
+const BOOT_ATTEMPTS = Number(process.env.DARKMARKET_BOOT_ATTEMPTS ?? "3");
 
 const bootOne = async (i: number): Promise<void> => {
-  // Stagger the starts. Five wallets opening databases in the same instant is
-  // how the lock conflicts happened in the first place.
+  // Stagger: five wallets opening databases in the same instant is how the
+  // lock conflicts happened.
   await new Promise((r) => setTimeout(r, i * 2500));
 
   for (let attempt = 1; attempt <= BOOT_ATTEMPTS; attempt++) {
     try {
-      say(`participant ${i}: building wallet (attempt ${attempt})`);
-      // dust-only skips the slow shielded scan, but it also stops the
-      // unshielded wallet, and registerNightForDust waits for unshielded sync
-      // to complete. So it can only be used where registration is already done.
-      // Local syncs in about half a minute, so it just uses the full mode.
-      const syncMode = process.env.DARKMARKET_SYNC_MODE ?? (isLocal ? "all" : "all");
-      const w = await buildWalletFacade(urls as never, seeds[i], NETWORK as never, syncMode as never);
-      say(`participant ${i}: waiting for dust`);
+      say(`wallet ${i}: building (attempt ${attempt})`);
+      const w = await buildWalletFacade(urls as never, seeds[i], NETWORK as never, "all");
       try {
         await registerNightForDust(w);
-      } catch (e: unknown) {
-        say(`participant ${i}: dust registration skipped, ${String((e as Error)?.message ?? e).slice(0, 90)}`);
+      } catch {
+        // already registered, or nothing to register
       }
-      await waitForDustFunds(w.wallet, { timeoutMs: Number(process.env.DARKMARKET_DUST_TIMEOUT_MS ?? 900000) });
+      await waitForDustFunds(w.wallet, {
+        timeoutMs: Number(process.env.DARKMARKET_DUST_TIMEOUT_MS ?? 900000),
+      });
+
       const providers = await configureMidnightNodeProviders(
         w.wallet, w.zswapSecretKeys, w.walletZswapSecretKeys, w.dustSecretKey,
         w.walletDustSecretKey, urls as never, `darkmarket-p${i}`,
         zkConfigPath, w.unshieldedKeystore,
       );
-      const compiled = CompiledContract.make("contract-round-value", Contract.Contract).pipe(
-        CompiledContract.withWitnesses({} as never),
-        CompiledContract.withCompiledFileAssets("./"),
-      );
-      // Swap in a private state store of this participant's own before joining.
       const own = {
         ...(providers as Record<string, unknown>),
         privateStateProvider: ownPrivateState(i, w.zswapSecretKeys.coinPublicKey as never),
       } as never;
 
+      const compiled = CompiledContract.make("contract-round-value", Contract.Contract).pipe(
+        CompiledContract.withWitnesses({} as never),
+        CompiledContract.withCompiledFileAssets("./"),
+      );
       const contract = await findDeployedContract(own, {
         contractAddress: address,
         compiledContract: compiled as never,
         privateStateId: `darkmarket-p${i}`,
         initialPrivateState: {},
       });
-      // Once a wallet is ready it does not need to keep scanning. Five wallets
-      // all syncing in one process starve the proving of CPU: the first seal
-      // took fifteen seconds and the second was still going a quarter of an
-      // hour later, at 180% CPU. Suspending the auxiliary streams leaves each
-      // wallet able to pay fees and nothing else, which is all a participant
-      // needs to seal.
+
+      // A synced wallet keeps scanning and starves the proving. Each one only
+      // needs to pay a fee from here.
       try {
         await suspendAuxWalletSyncForFees(w.wallet as never);
-        say(`participant ${i}: sync suspended, fees only`);
-      } catch (e: unknown) {
-        say(`participant ${i}: could not suspend sync, ${String((e as Error)?.message ?? e).slice(0, 80)}`);
+      } catch {
+        // best effort
       }
 
-      participants[i] = {
-        index: i, address: w.unshieldedAddress, dustAddress: w.dustAddress,
-        contract, ready: true,
-      };
-      say(`participant ${i}: ready at ${w.unshieldedAddress.slice(0, 24)}...`);
+      wallets[i] = { index: i, address: w.unshieldedAddress, contract };
+      say(`wallet ${i}: ready`);
       return;
     } catch (e: unknown) {
-      const msg = String((e as Error)?.message ?? e).slice(0, 200);
-      say(`participant ${i}: attempt ${attempt} failed, ${msg}`);
+      const msg = String((e as Error)?.message ?? e).slice(0, 180);
+      say(`wallet ${i}: attempt ${attempt} failed, ${msg}`);
       bootError = msg;
-      // Back off before retrying: an instant retry hits the same lock.
       await new Promise((r) => setTimeout(r, 4000 * attempt));
     }
   }
-  say(`participant ${i}: gave up after ${BOOT_ATTEMPTS} attempts`);
+  say(`wallet ${i}: gave up`);
 };
 
 (async () => {
   await Promise.all(Array.from({ length: PARTICIPANTS }, (_, i) => bootOne(i)));
   booting = false;
-  say(`boot done, ${readyCount()}/${PARTICIPANTS} ready`);
+  say(`boot done, ${readyCount()}/${PARTICIPANTS} wallets ready`);
 })();
 
-// Reading the ledger needs no wallet at all, so it goes through its own public
-// data provider and keeps working even while the wallets are still booting.
+// Reading the ledger needs no wallet, so it works while the wallets boot.
 const reader = indexerPublicDataProvider(net.indexer, net.indexerWS);
 
 const readChain = async () => {
   const state = await reader.queryContractState(address);
   if (!state) {
-    return { conditionId: "", sealed: 0, participants: 0, yes: "0", no: "0", epoch: 0, calls: 0 };
+    return { conditionId: "", opened: 0, matched: 0, matchedNotional: "0", coveredNotional: "0", calls: 0 };
   }
   const l = Contract.ledger(state.data);
   return {
     conditionId: isZero(l.condition_id) ? "" : toHex(l.condition_id),
-    sealed: Number(l.pending),
-    participants: Number(l.participants),
-    yes: l.yes_notional.toString(),
-    no: l.no_notional.toString(),
-    epoch: Number(l.epoch),
+    opened: Number(l.opened),
+    matched: Number(l.matched),
+    matchedNotional: l.matched_notional.toString(),
+    coveredNotional: l.covered_notional.toString(),
     calls: Number(l.round),
   };
 };
 
-// Each participant needs its OWN LevelDB.
-//
-// configureMidnightNodeProviders hardcodes midnightDbName to
-// "midnight-level-db-deploy", so five wallets end up fighting over one database
-// and all but the first fail with "Database failed to open". The SDK's own
-// comment notes it separated the deploy DB for exactly this reason; it just did
-// not go far enough for five concurrent wallets.
-//
-// It also notes that transaction submission needs far less than a deploy does,
-// which is all a participant ever does.
 const json = (b: unknown, s = 200) =>
-  new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json", "access-control-allow-origin": "*" } });
+  new Response(JSON.stringify(b), {
+    status: s,
+    headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+  });
+
+const explorerBase = process.env.EVM_EXPLORER ?? "https://amoy.polygonscan.com";
 
 Bun.serve({
   port: PORT,
@@ -235,11 +216,13 @@ Bun.serve({
     const p = url.pathname;
 
     if (req.method === "OPTIONS") {
-      return new Response(null, { headers: {
-        "access-control-allow-origin": "*",
-        "access-control-allow-methods": "GET,POST,OPTIONS",
-        "access-control-allow-headers": "content-type",
-      }});
+      return new Response(null, {
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET,POST,OPTIONS",
+          "access-control-allow-headers": "content-type",
+        },
+      });
     }
 
     if (p === "/" || p === "/index.html") {
@@ -249,120 +232,189 @@ Bun.serve({
     }
 
     if (p === "/api/state") {
-      let chain = { conditionId: "", sealed: 0, participants: 0, yes: "0", no: "0", epoch: 0, calls: 0 };
-      try { chain = await readChain(); } catch {}
-      const agg: Aggregate = {
-        conditionId: chain.conditionId || CONDITION_ID,
-        yesNotional: BigInt(chain.yes), noNotional: BigInt(chain.no),
-        participants: chain.participants, epoch: chain.epoch,
-      };
-      const residual = netOff(agg);
+      let chain = { conditionId: "", opened: 0, matched: 0, matchedNotional: "0", coveredNotional: "0", calls: 0 };
+      try { chain = await readChain(); } catch { /* indexer hiccup */ }
+
+      let market: unknown = null;
+      try { market = await resolveMarket(chain.conditionId || CONDITION_ID); } catch { /* offline */ }
+
       return json({
-        network: NETWORK, contract: address, floor: PARTICIPANTS,
-        booting, bootError, running,
-        participants: participants.map((x, i) => x ? { index: i, address: x.address, ready: true } : { index: i, address: null, ready: false }),
-        chain,
-        residual: {
-          kind: residual.kind, crossed: residual.crossed.toString(),
-          side: residual.kind === "residual" ? residual.side : null,
-          size: residual.kind === "residual" ? residual.size.toString() : "0",
-        },
-        shielded: shieldedFraction(agg),
-        settlement: lastSettlement,
+        network: NETWORK,
+        contract: address,
+        conditionId: chain.conditionId || CONDITION_ID,
+        booting, busy, bootError,
         evmReady: !!evmConfig(),
+        explorer: explorerBase,
+        wallets: wallets.map((w, i) =>
+          w ? { index: i, address: w.address, ready: true } : { index: i, address: null, ready: false }),
+        chain,
+        market,
+        positions,
         log: log.slice(-40),
       });
     }
 
-    if (p === "/api/run" && req.method === "POST") {
-      if (booting) return json({ error: "still booting wallets" }, 409);
-      if (running) return json({ error: "already running" }, 409);
-      if (readyCount() < PARTICIPANTS) {
-        return json({ error: `only ${readyCount()} of ${PARTICIPANTS} wallets are funded and ready` }, 400);
-      }
-      running = true;
-      const blinds: Uint8Array[] = [];
+    // --- open a position -------------------------------------------------
+    if (p === "/api/open" && req.method === "POST") {
+      if (booting) return json({ error: "wallets are still syncing" }, 409);
+      if (busy) return json({ error: "another transaction is in flight" }, 409);
+      const body = (await req.json()) as { wallet: number; side: "YES" | "NO"; size: number };
+      const w = wallets[body.wallet];
+      if (!w) return json({ error: `wallet ${body.wallet} is not ready` }, 400);
+      if (!Number.isFinite(body.size) || body.size <= 0) return json({ error: "size must be positive" }, 400);
+
+      busy = true;
       try {
-        say("--- epoch start ---");
-        for (let i = 0; i < PARTICIPANTS; i++) {
-          const blind = new Uint8Array(randomBytes(32));
-          blinds.push(blind);
-          const c = Contract.pureCircuits.intent_commitment(INTENTS[i].side, INTENTS[i].size, blind);
-          say(`participant ${i} sealing`);
-          const tx = await participants[i]!.contract.callTx.commit_intent(hex32(CONDITION_ID), c);
-          say(`participant ${i} sealed ${toHex(c).slice(0, 18)}... block ${tx.public.blockHeight}`);
-        }
-        say("closing epoch, five openings in one proof");
-        const tx = await participants[0]!.contract.callTx.close_epoch(
-          INTENTS.map((x) => x.side), INTENTS.map((x) => x.size), blinds,
-        );
-        say(`closed in block ${tx.public.blockHeight}`);
+        const blind = new Uint8Array(randomBytes(32));
+        const side = body.side === "NO" ? false : true;
+        const size = BigInt(Math.floor(body.size));
+        const c = Contract.pureCircuits.position_commitment(side, size, blind);
 
-        // The residual is the only part that needs the open market, so that is
-        // the only part Polygon hears about.
-        const chain = await readChain();
-        const agg: Aggregate = {
-          conditionId: chain.conditionId || CONDITION_ID,
-          yesNotional: BigInt(chain.yes),
-          noNotional: BigInt(chain.no),
-          participants: chain.participants,
-          epoch: chain.epoch,
+        say(`wallet ${body.wallet} opening ${body.side} ${body.size}`);
+        const tx = await w.contract.callTx.open_position(hex32(CONDITION_ID), c);
+        const block = Number(tx.public.blockHeight);
+
+        const pos: Position = {
+          id: nextId++,
+          wallet: body.wallet,
+          walletAddress: w.address,
+          side: body.side === "NO" ? "NO" : "YES",
+          size: Math.floor(body.size),
+          commitment: toHex(c),
+          blind: toHex(blind),
+          openedBlock: block,
+          openedAt: new Date().toISOString(),
+          status: "open",
         };
-        const residual = netOff(agg);
-        if (residual.kind === "crossed") {
-          say("fully crossed, nothing reaches Polygon");
-        } else if (!evmConfig()) {
-          say("no EVM config, skipping the Polygon leg");
-        } else {
-          try {
-            say(`settling ${residual.size} ${residual.side} on Polygon`);
-            lastSettlement = await settleOnPolygon({
-              midnightContract: address,
-              epoch: chain.epoch,
-              conditionId: agg.conditionId,
-              side: residual.side,
-              size: residual.size,
-              crossed: residual.crossed,
-            });
-            say(`settled on Polygon: ${lastSettlement.txHash}`);
-          } catch (e: unknown) {
-            say(`Polygon settlement failed: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
-          }
-        }
-
-        return json({
-          ok: true,
-          block: Number(tx.public.blockHeight),
-          settlement: lastSettlement,
-        });
+        positions.push(pos);
+        say(`position ${pos.id} open, commitment ${pos.commitment.slice(0, 18)}... block ${block}`);
+        return json({ ok: true, position: pos });
       } catch (e: unknown) {
         const msg = String((e as Error)?.message ?? e).slice(0, 300);
-        say(`FAILED ${msg}`);
+        say(`open failed: ${msg}`);
         return json({ error: msg }, 500);
       } finally {
-        running = false;
+        busy = false;
       }
     }
 
-    if (p === "/api/order") {
-      const chain = await readChain();
-      const agg: Aggregate = {
-        conditionId: chain.conditionId || CONDITION_ID,
-        yesNotional: BigInt(chain.yes), noNotional: BigInt(chain.no),
-        participants: chain.participants, epoch: chain.epoch,
-      };
-      const residual = netOff(agg);
-      // The market itself is always returned, epoch or not: the front page shows
-      // live Polymarket prices before anyone has taken a position.
+    // --- match an open position ------------------------------------------
+    if (p === "/api/match" && req.method === "POST") {
+      if (booting) return json({ error: "wallets are still syncing" }, 409);
+      if (busy) return json({ error: "another transaction is in flight" }, 409);
+      const body = (await req.json()) as { target: number; wallet: number; size?: number };
+      const target = positions.find((x) => x.id === body.target);
+      if (!target) return json({ error: `no position ${body.target}` }, 404);
+      if (target.status !== "open") return json({ error: `position ${target.id} is already ${target.status}` }, 400);
+      const w = wallets[body.wallet];
+      if (!w) return json({ error: `wallet ${body.wallet} is not ready` }, 400);
+      if (body.wallet === target.wallet) return json({ error: "a wallet cannot match its own position" }, 400);
+
+      busy = true;
       try {
-        const market = await resolveMarket(agg.conditionId);
-        return json({
-          crossed: residual.kind === "crossed",
-          market,
-          order: residual.kind === "crossed" ? null : buildOrder(residual, market),
-        });
+        // The matching side is the opposite one, same size unless asked otherwise.
+        const side = target.side === "YES" ? false : true;
+        const size = BigInt(Math.floor(body.size ?? target.size));
+        const blind = new Uint8Array(randomBytes(32));
+        const c = Contract.pureCircuits.position_commitment(side, size, blind);
+
+        say(`wallet ${body.wallet} opening the other side of position ${target.id}`);
+        const openTx = await w.contract.callTx.open_position(hex32(CONDITION_ID), c);
+
+        const counter: Position = {
+          id: nextId++,
+          wallet: body.wallet,
+          walletAddress: w.address,
+          side: target.side === "YES" ? "NO" : "YES",
+          size: Number(size),
+          commitment: toHex(c),
+          blind: toHex(blind),
+          openedBlock: Number(openTx.public.blockHeight),
+          openedAt: new Date().toISOString(),
+          status: "open",
+        };
+        positions.push(counter);
+
+        say(`matching ${target.id} with ${counter.id}`);
+        const matchTx = await w.contract.callTx.match_positions(
+          target.side === "YES",
+          BigInt(target.size),
+          hex32(target.blind),
+          side,
+          size,
+          blind,
+        );
+        const block = Number(matchTx.public.blockHeight);
+        const at = new Date().toISOString();
+
+        target.status = "matched";
+        target.matchedWith = counter.id;
+        target.matchedBlock = block;
+        target.matchedAt = at;
+        counter.status = "matched";
+        counter.matchedWith = target.id;
+        counter.matchedBlock = block;
+        counter.matchedAt = at;
+
+        say(`matched in block ${block}, nothing reaches the open market`);
+        return json({ ok: true, block, target, counter });
       } catch (e: unknown) {
-        return json({ error: String((e as Error)?.message ?? e).slice(0, 200) }, 502);
+        const msg = String((e as Error)?.message ?? e).slice(0, 300);
+        say(`match failed: ${msg}`);
+        return json({ error: msg }, 500);
+      } finally {
+        busy = false;
+      }
+    }
+
+    // --- cover an open position with Polygon liquidity --------------------
+    if (p === "/api/cover" && req.method === "POST") {
+      if (busy) return json({ error: "another transaction is in flight" }, 409);
+      const body = (await req.json()) as { position: number };
+      const pos = positions.find((x) => x.id === body.position);
+      if (!pos) return json({ error: `no position ${body.position}` }, 404);
+      if (pos.status !== "open") return json({ error: `position ${pos.id} is already ${pos.status}` }, 400);
+      if (!evmConfig()) {
+        return json({ error: "no EVM config: set EVM_VAULT_ADDRESS and EVM_EXECUTOR_PRIVATE_KEY" }, 400);
+      }
+
+      busy = true;
+      try {
+        const slot = nextCoverSlot++;
+        say(`covering position ${pos.id} on Polygon (slot ${slot})`);
+        const settlement = await settleOnPolygon({
+          epoch: slot,
+          conditionId: CONDITION_ID,
+          side: pos.side,
+          size: BigInt(pos.size),
+          crossed: 0n,
+        });
+        say(`covered on Polygon: ${settlement.txHash}`);
+
+        // Record it on Midnight too, so both ledgers carry the same number.
+        const w = wallets[pos.wallet];
+        if (w) {
+          try {
+            await w.contract.callTx.mark_covered(
+              BigInt(pos.size),
+              hex32(pos.blind),
+              pos.side === "YES",
+            );
+            say(`marked position ${pos.id} covered on Midnight`);
+          } catch (e: unknown) {
+            say(`could not mark covered on Midnight: ${String((e as Error)?.message ?? e).slice(0, 120)}`);
+          }
+        }
+
+        pos.status = "covered";
+        pos.cover = { ...settlement, at: new Date().toISOString() };
+        return json({ ok: true, position: pos });
+      } catch (e: unknown) {
+        const msg = String((e as Error)?.message ?? e).slice(0, 300);
+        say(`cover failed: ${msg}`);
+        return json({ error: msg }, 500);
+      } finally {
+        busy = false;
       }
     }
 
