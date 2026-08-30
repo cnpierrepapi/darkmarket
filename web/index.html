@@ -174,6 +174,14 @@
   .toast .tx{margin-left:auto;color:var(--dim2);cursor:pointer;font-size:15px;
     line-height:1;padding-left:6px}
   .toast .tx:hover{color:var(--ink)}
+
+  .cnt{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    font-size:10.5px;font-family:ui-monospace,monospace;letter-spacing:0}
+  .how{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:5px;
+    font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .how.matched{background:var(--yes-bg);color:#4cc98c}
+  .how.covered{background:rgba(232,163,61,.2);color:var(--warn)}
 </style>
 </head>
 <body>
@@ -246,9 +254,19 @@
           </div>
 
           <div class="card" style="margin-top:16px">
-            <h2>Open orders you can act on</h2>
-            <div id="openList"><div class="empty">Nothing open yet.</div></div>
+            <h2>Open positions <span class="cnt" id="cntOpen">0</span></h2>
+            <div id="openList"><div class="empty">Nothing open on this market yet.</div></div>
             <div class="err" id="actErr"></div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <h2>Closed positions <span class="cnt" id="cntClosed">0</span></h2>
+            <div id="closedList"><div class="empty">Nothing closed on this market yet.</div></div>
+            <div class="note">
+              A position closes one of two ways. Another wallet took the other side,
+              and nothing reached the open market. Or nobody would, and Polygon covered
+              it, which leaves a transaction anyone can open.
+            </div>
           </div>
         </div>
       </div>
@@ -312,7 +330,7 @@
 
 <div class="toasts" id="toasts"></div>
 
-<script src="config.js"></script>
+<script src="/config.js"></script>
 <script>
 // Two candidates: whatever config.js points at, and a backend running on the
 // machine viewing the page. The hosted one wins when it answers; the local one
@@ -347,6 +365,7 @@ var markets = [];
 var selected = null;
 var filterCat = "All";
 var query = "";
+var routed = false;
 
 function showTab(name){
   var secs = document.querySelectorAll(".tab");
@@ -458,24 +477,64 @@ async function loadMarkets(){
     }
     paintCats();
     paintMarkets();
+    if (!routed){ routed = true; applyRoute(false); }
   } catch(e){
     $("mgrid").innerHTML = '<div class="empty">could not reach the backend</div>';
   }
 }
 
-window.pickMarket = function(i){
-  selected = markets[i];
+// Every market gets its own URL. A market you can link to is a market you can
+// send somebody, and the demo needs a page per game rather than one page that
+// quietly changes what it is showing.
+function slugOf(m){
+  return m.slug || (m.conditionId || "").slice(2, 14);
+}
+
+function goMarket(m, push){
+  selected = m;
   paintSelected();
+  if (push !== false){
+    var url = "/play/" + slugOf(m);
+    if (location.pathname !== url) history.pushState({ slug: slugOf(m) }, "", url);
+  }
+  document.title = m.question ? m.question.slice(0, 70) + " - DARKMARKET" : "DARKMARKET";
   showTab("trade");
-};
+}
+
+function goHome(push){
+  selected = null;
+  if (push !== false && location.pathname !== "/") history.pushState({}, "", "/");
+  document.title = "DARKMARKET";
+  showTab("markets");
+  paintMarkets();
+}
+
+// Resolve whatever is in the address bar once the market list has landed.
+function applyRoute(push){
+  var m = location.pathname.match(/^\/play\/([^/?#]+)/);
+  if (!m){ if (location.pathname === "/") { showTab("markets"); } return; }
+  var want = decodeURIComponent(m[1]);
+  var hit = markets.filter(function(x){ return slugOf(x) === want; })[0];
+  if (hit){ goMarket(hit, false); }
+  else if (markets.length){
+    // The list only carries what is liquid today, so a stale link lands home
+    // rather than on an empty page pretending to be a market.
+    toast("That market is not in today's list", "bad", want);
+    goHome(false);
+  }
+}
+
+window.addEventListener("popstate", function(){
+  if (location.pathname === "/") goHome(false); else applyRoute(false);
+});
+
+window.pickMarket = function(i){ goMarket(markets[i], true); };
 
 window.pickSide = function(i, s){
-  selected = markets[i];
   side = s;
   $("sYES").classList.toggle("sel", s === "YES");
   $("sNO").classList.toggle("sel", s === "NO");
-  paintSelected();
-  showTab("trade");
+  goMarket(markets[i], true);
 };
 
 function paintSelected(){
@@ -492,12 +551,11 @@ var headBtns = document.querySelectorAll("[data-t]");
 for (var i=0;i<headBtns.length;i++){
   headBtns[i].onclick = (function(b){ return function(){ showTab(b.dataset.t); }; })(headBtns[i]);
 }
-$("home").onclick = function(){ showTab("markets"); };
-$("backToMarkets").onclick = function(e){ e.preventDefault(); showTab("markets"); };
+$("home").onclick = function(){ goHome(true); };
+$("backToMarkets").onclick = function(e){ e.preventDefault(); goHome(true); };
 $("search").oninput = function(){
   query = this.value.trim().toLowerCase();
-  showTab("markets");
-  paintMarkets();
+  goHome(true);
 };
 
 $("sYES").onclick = function(){ side="YES"; $("sYES").classList.add("sel"); $("sNO").classList.remove("sel"); };
@@ -596,13 +654,16 @@ function positionCard(p, showActs){
     '<div class="mono" style="margin-top:7px">commitment ' + p.commitment.slice(0,26) + '...</div>' +
     '<div class="mono">opened block ' + p.openedBlock + ' at ' + shortTime(p.openedAt) + '</div>';
   if (p.status === "matched"){
-    h += '<div class="mono">matched with #' + p.matchedWith + ' in block ' + p.matchedBlock +
-         ' at ' + shortTime(p.matchedAt) + '</div>';
+    h += '<div style="margin-top:9px"><span class="how matched">Matched on Midnight</span></div>' +
+         '<div class="mono" style="margin-top:6px">against #' + p.matchedWith +
+         ' in block ' + p.matchedBlock + ' at ' + shortTime(p.matchedAt) + '</div>' +
+         '<div class="mono">nothing reached the open market</div>';
   }
   if (p.status === "covered" && p.cover){
-    h += '<div class="mono">covered ' + shortTime(p.cover.at) + ' &middot; ' +
-         '<a href="' + p.cover.explorerUrl + '" target="_blank" rel="noreferrer">' +
-         p.cover.txHash.slice(0,18) + '...</a></div>';
+    h += '<div style="margin-top:9px"><span class="how covered">Covered on Polygon</span></div>' +
+         '<div class="mono" style="margin-top:6px">at ' + shortTime(p.cover.at) + '</div>' +
+         '<div class="mono"><a href="' + p.cover.explorerUrl + '" target="_blank" rel="noreferrer">' +
+         p.cover.txHash.slice(0,26) + '... on Polygonscan</a></div>';
   }
   if (showActs && p.status === "open"){
     var opts = "";
@@ -674,9 +735,24 @@ async function refresh(){
     var matched = s.positions.filter(function(p){ return p.status==="matched"; });
     var covered = s.positions.filter(function(p){ return p.status==="covered"; });
 
-    $("openList").innerHTML = opens.length
-      ? opens.map(function(p){ return positionCard(p, true); }).join("")
-      : '<div class="empty">Nothing open yet. Open one on the left.</div>';
+    // The game page is about one market, so it only shows that market's book.
+    // The Positions tab keeps the whole thing.
+    var here = function(p){
+      return !selected || !p.conditionId || p.conditionId === selected.conditionId;
+    };
+    var mineOpen = opens.filter(here);
+    var mineClosed = matched.filter(here).concat(covered.filter(here));
+    mineClosed.sort(function(a, b){ return b.id - a.id; });
+
+    $("cntOpen").textContent = mineOpen.length;
+    $("cntClosed").textContent = mineClosed.length;
+    $("closedList").innerHTML = mineClosed.length
+      ? mineClosed.map(function(p){ return positionCard(p, false); }).join("")
+      : '<div class="empty">Nothing closed on this market yet.</div>';
+
+    $("openList").innerHTML = mineOpen.length
+      ? mineOpen.map(function(p){ return positionCard(p, true); }).join("")
+      : '<div class="empty">Nothing open on this market yet. Open one on the left.</div>';
     $("colOpen").innerHTML = opens.length ? opens.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
     $("colMatched").innerHTML = matched.length ? matched.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
     $("colCovered").innerHTML = covered.length ? covered.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
