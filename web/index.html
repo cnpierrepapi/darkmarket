@@ -320,6 +320,7 @@ async function refresh(){
       $("bar").innerHTML = b;
     }
 
+    window.__SETTLEMENT = s.settlement || null;
     if (s.log && s.log.length){
       var el = $("log");
       var atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
@@ -351,7 +352,10 @@ async function loadOrder(closed){
       '<div class="row"><span class="k">size</span><span class="v">' + o.sizeUsdc + ' USDC</span></div>' +
       '<div class="row"><span class="k">shares</span><span class="v">~' + o.shares + '</span></div>' +
       '<div class="row"><span class="k">token</span><span class="v">' + o.tokenId.slice(0,16) + '...</span></div>' +
-      '<div class="note">Live price from Polymarket. The order is computed, not signed.</div>';
+      '<div class="note">Live price from Polymarket. The order is computed, not signed.</div>' +
+      (window.__SETTLEMENT ? '<div class="row"><span class="k">settled on Polygon</span><span class="v"><a href="' +
+        window.__SETTLEMENT.explorerUrl + '" target="_blank" rel="noreferrer">' +
+        window.__SETTLEMENT.txHash.slice(0,12) + '...</a></span></div>' : '');
   } catch(e){}
 }
 

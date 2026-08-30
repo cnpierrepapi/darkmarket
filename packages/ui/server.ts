@@ -33,6 +33,7 @@ import * as Contract from "@evm-midnight/midnight-contract/contract";
 import { netOff, shieldedFraction, type Aggregate } from "./netting.ts";
 import { resolveMarket, buildOrder } from "./polymarket.ts";
 import { allSeeds, allSeedsFromMaster, readLocalEnv, PARTICIPANTS, INTENTS } from "./participants.ts";
+import { settleOnPolygon, evmConfig, type SettleResult } from "./evm.ts";
 
 const NETWORK = process.env.MIDNIGHT_NETWORK_ID ?? "preprod";
 const PORT = Number(process.env.PORT ?? 8080);
@@ -91,6 +92,7 @@ const seeds = isLocal ? allSeedsFromMaster(net.walletSeed!) : allSeeds(mnemonic!
 const participants: (Participant | undefined)[] = new Array(PARTICIPANTS).fill(undefined);
 const readyCount = () => participants.filter(Boolean).length;
 let bootError: string | null = null;
+let lastSettlement: SettleResult | null = null;
 let booting = true;
 let running = false;
 
@@ -266,6 +268,8 @@ Bun.serve({
           size: residual.kind === "residual" ? residual.size.toString() : "0",
         },
         shielded: shieldedFraction(agg),
+        settlement: lastSettlement,
+        evmReady: !!evmConfig(),
         log: log.slice(-40),
       });
     }
@@ -293,7 +297,43 @@ Bun.serve({
           INTENTS.map((x) => x.side), INTENTS.map((x) => x.size), blinds,
         );
         say(`closed in block ${tx.public.blockHeight}`);
-        return json({ ok: true, block: Number(tx.public.blockHeight) });
+
+        // The residual is the only part that needs the open market, so that is
+        // the only part Polygon hears about.
+        const chain = await readChain();
+        const agg: Aggregate = {
+          conditionId: chain.conditionId || CONDITION_ID,
+          yesNotional: BigInt(chain.yes),
+          noNotional: BigInt(chain.no),
+          participants: chain.participants,
+          epoch: chain.epoch,
+        };
+        const residual = netOff(agg);
+        if (residual.kind === "crossed") {
+          say("fully crossed, nothing reaches Polygon");
+        } else if (!evmConfig()) {
+          say("no EVM config, skipping the Polygon leg");
+        } else {
+          try {
+            say(`settling ${residual.size} ${residual.side} on Polygon`);
+            lastSettlement = await settleOnPolygon({
+              epoch: chain.epoch,
+              conditionId: agg.conditionId,
+              side: residual.side,
+              size: residual.size,
+              crossed: residual.crossed,
+            });
+            say(`settled on Polygon: ${lastSettlement.txHash}`);
+          } catch (e: unknown) {
+            say(`Polygon settlement failed: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
+          }
+        }
+
+        return json({
+          ok: true,
+          block: Number(tx.public.blockHeight),
+          settlement: lastSettlement,
+        });
       } catch (e: unknown) {
         const msg = String((e as Error)?.message ?? e).slice(0, 300);
         say(`FAILED ${msg}`);
