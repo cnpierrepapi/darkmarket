@@ -567,6 +567,7 @@ Bun.serve({
         const slot = nextCoverSlot++;
         say(`covering position ${pos.id} on Polygon (slot ${slot})`);
         const settlement = await settleOnPolygon({
+          midnightContract: address,
           epoch: slot,
           conditionId: pos.conditionId ?? CONDITION_ID,
           side: pos.side,

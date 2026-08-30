@@ -10,17 +10,21 @@
 
 import { createPublicClient, createWalletClient, http, fallback, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { polygonAmoy } from "viem/chains";
+import { polygon, polygonAmoy } from "viem/chains";
 
 export const VAULT_ABI = parseAbi([
-  "function settleResidual(uint64 epoch, bytes32 conditionId, uint8 side, uint256 size, uint256 crossed)",
+  // Keyed on the Midnight contract as well as the epoch. Every Midnight
+  // contract starts counting at epoch 1, so the epoch alone collides across
+  // deployments and would reject every later contract's first settlement.
+  "function settleResidual(bytes32 midnightContract, uint64 epoch, bytes32 conditionId, uint8 side, uint256 size, uint256 crossed)",
   "function totalDeposits() view returns (uint256)",
   "function committed() view returns (uint256)",
   "function freeCollateral() view returns (uint256)",
-  "function epochSettled(uint64) view returns (bool)",
+  "function settled(bytes32, uint64) view returns (bool)",
 ]);
 
 export type EvmConfig = {
+  chain: typeof polygon | typeof polygonAmoy;
   rpcUrls: string[];
   vault: `0x${string}`;
   privateKey: `0x${string}`;
@@ -31,19 +35,22 @@ export const evmConfig = (): EvmConfig | null => {
   const vault = process.env.EVM_VAULT_ADDRESS as `0x${string}` | undefined;
   const privateKey = process.env.EVM_EXECUTOR_PRIVATE_KEY as `0x${string}` | undefined;
   if (!vault || !privateKey) return null;
+  const mainnet = (process.env.EVM_CHAIN ?? "polygon") === "polygon";
+  const defaultRpcs = mainnet
+    ? ["https://polygon-bor-rpc.publicnode.com", "https://polygon.drpc.org"]
+    : ["https://polygon-amoy-bor-rpc.publicnode.com", "https://polygon-amoy.drpc.org"];
   return {
+    chain: mainnet ? polygon : polygonAmoy,
     // More than one, because these are public nodes and they have moods. A
     // cover failed mid-demo on a -32602 from the first one, and the exact same
     // call went through on the same node a minute later. Nothing was wrong with
     // the call. So: try the next node instead of failing the settlement.
-    rpcUrls: (process.env.EVM_RPC_URL ?? [
-      "https://polygon-amoy-bor-rpc.publicnode.com",
-      "https://rpc-amoy.polygon.technology",
-      "https://polygon-amoy.drpc.org",
-    ].join(",")).split(",").map((u) => u.trim()).filter(Boolean),
+    rpcUrls: (process.env.EVM_RPC_URL ?? defaultRpcs.join(","))
+      .split(",").map((u) => u.trim()).filter(Boolean),
     vault,
     privateKey,
-    explorer: process.env.EVM_EXPLORER ?? "https://amoy.polygonscan.com",
+    explorer: process.env.EVM_EXPLORER ??
+      (mainnet ? "https://polygonscan.com" : "https://amoy.polygonscan.com"),
   };
 };
 
@@ -53,7 +60,7 @@ export const evmConfig = (): EvmConfig | null => {
  * demo epoch has to settle inside that. At 1e13 a 500 unit residual costs
  * 0.005 POL, which a single faucet drip covers many times over.
  */
-const UNIT = BigInt(process.env.EVM_UNIT_WEI ?? "10000000000000"); // 1e13
+const UNIT = BigInt(process.env.EVM_UNIT_WEI ?? "1000000000000"); // 1e12
 
 export type SettleResult = {
   txHash: string;
@@ -64,6 +71,7 @@ export type SettleResult = {
 };
 
 export async function settleOnPolygon(args: {
+  midnightContract: string;
   epoch: number;
   conditionId: string;
   side: "YES" | "NO";
@@ -78,8 +86,8 @@ export async function settleOnPolygon(args: {
     cfg.rpcUrls.map((u) => http(u, { retryCount: 3, retryDelay: 800 })),
     { rank: false },
   );
-  const wallet = createWalletClient({ account, chain: polygonAmoy, transport });
-  const pub = createPublicClient({ chain: polygonAmoy, transport });
+  const wallet = createWalletClient({ account, chain: cfg.chain, transport });
+  const pub = createPublicClient({ chain: cfg.chain, transport });
 
   const sizeWei = args.size * UNIT;
   const crossedWei = args.crossed * UNIT;
@@ -99,11 +107,14 @@ export async function settleOnPolygon(args: {
 
   // The deployed vault keys settlements on the epoch number alone, so each
   // cover has to pass a number nobody has used yet. The caller supplies it.
+  const midnight = (args.midnightContract.startsWith("0x")
+    ? args.midnightContract
+    : `0x${args.midnightContract}`) as `0x${string}`;
   const already = (await pub.readContract({
     address: cfg.vault,
     abi: VAULT_ABI,
-    functionName: "epochSettled",
-    args: [BigInt(args.epoch)],
+    functionName: "settled",
+    args: [midnight, BigInt(args.epoch)],
   })) as boolean;
   if (already) throw new Error(`settlement slot ${args.epoch} is already used`);
 
@@ -112,6 +123,7 @@ export async function settleOnPolygon(args: {
     abi: VAULT_ABI,
     functionName: "settleResidual",
     args: [
+      midnight,
       BigInt(args.epoch),
       args.conditionId as `0x${string}`,
       args.side === "YES" ? 0 : 1,
