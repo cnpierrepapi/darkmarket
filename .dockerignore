@@ -3,7 +3,6 @@ node_modules
 batcher-data
 batcher-debug.log
 *.log
-CLAUDE.md
 .git
 packages/contracts-evm/build
 packages/contracts-evm/ignition/deployments
