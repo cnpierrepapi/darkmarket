@@ -113,9 +113,23 @@ export function describeOrder(order: Order | null, residual: Residual): string {
  * something to hide inside. Only markets with two outcomes and real clob token
  * ids are usable here.
  */
+// Gamma has no category field. What it has, once you ask for tags, is a list
+// of labels per event, broadest first, plus a series title for anything that is
+// part of a recurring competition. The first capitalised tag is the one a person
+// would use as a heading.
+function pickCategory(m: any): string | undefined {
+  const tags = (m.events?.[0]?.tags ?? m.tags ?? []) as any[];
+  for (const t of tags) {
+    const label = String(t?.label ?? "");
+    if (label && label[0] === label[0]?.toUpperCase() && label.length < 22) return label;
+  }
+  const series = m.events?.[0]?.series?.[0]?.title;
+  return series ? String(series) : undefined;
+}
+
 export async function listMarkets(limit = 12): Promise<Market[]> {
   const url = `${GAMMA}/markets?limit=${limit * 3}&closed=false&active=true` +
-    `&order=volume24hr&ascending=false`;
+    `&order=volume24hr&ascending=false&include_tag=true`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`gamma ${res.status} listing markets`);
   const rows = (await res.json()) as any[];
@@ -143,7 +157,7 @@ export async function listMarkets(limit = 12): Promise<Market[]> {
         noPrice: prices[1],
         icon: m.icon ?? m.image ?? undefined,
         volume: Number(m.volume ?? m.volumeNum ?? 0) || undefined,
-        category: (m.events?.[0]?.category ?? m.category ?? undefined) || undefined,
+        category: pickCategory(m),
         endDate: m.endDate ?? undefined,
       });
       if (out.length >= limit) break;
