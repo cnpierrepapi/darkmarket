@@ -56,8 +56,11 @@ const isLocal = NETWORK === "undeployed";
 const mnemonic = readLocalEnv("MIDNIGHT_WALLET_MNEMONIC");
 if (!mnemonic && !isLocal) throw new Error("no MIDNIGHT_WALLET_MNEMONIC");
 
-const address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT;
-if (!address) throw new Error("no contract address: pass one as an argument");
+// Deliberately mutable and deliberately optional. A host will kill a container
+// that has not bound its port within a few minutes, and bringing up a chain and
+// deploying a circuit takes longer than that. So the server listens first and
+// the slow work happens behind it.
+let address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT ?? "";
 
 const zkConfigPath = process.env.DARKMARKET_ZK_CONFIG ??
   "/app/packages/contracts-midnight/contract-round-value/src/managed";
@@ -114,6 +117,45 @@ const ownPrivateState = (index: number, coinPublicKey: Uint8Array) =>
   } as never);
 
 const BOOT_ATTEMPTS = Number(process.env.DARKMARKET_BOOT_ATTEMPTS ?? "3");
+
+/** Wait for the local chain's proof server and indexer, then deploy. */
+const bringUpChain = async (): Promise<void> => {
+  if (address) return;
+  say("no contract yet, waiting for the chain");
+
+  for (let i = 0; i < 300; i++) {
+    try {
+      const r = await fetch("http://127.0.0.1:6300/health");
+      if (r.ok) { say(`proof server up after ${i}s`); break; }
+    } catch { /* not yet */ }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    try {
+      say(`deploying the circuit (attempt ${attempt})`);
+      const proc = Bun.spawn(["bun", "run", "deploy-midnight.ts"], {
+        cwd: import.meta.dir,
+        env: { ...process.env, MIDNIGHT_NETWORK_ID: NETWORK },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const out = await new Response(proc.stdout).text();
+      await proc.exited;
+      const m = out.match(/Contract address: ([a-f0-9]+)/);
+      if (m) {
+        address = m[1];
+        say(`deployed at ${address}`);
+        return;
+      }
+      say("deploy did not land, the chain may still be generating dust");
+    } catch (e: unknown) {
+      say(`deploy attempt ${attempt} failed: ${String((e as Error)?.message ?? e).slice(0, 120)}`);
+    }
+    await new Promise((r) => setTimeout(r, 45000));
+  }
+  say("gave up deploying; the page will load but nothing can trade");
+};
 
 const bootOne = async (i: number): Promise<void> => {
   // Stagger: five wallets opening databases in the same instant is how the
@@ -176,6 +218,8 @@ const bootOne = async (i: number): Promise<void> => {
 };
 
 (async () => {
+  await bringUpChain();
+  if (!address) { booting = false; return; }
   await Promise.all(Array.from({ length: PARTICIPANTS }, (_, i) => bootOne(i)));
   booting = false;
   say(`boot done, ${readyCount()}/${PARTICIPANTS} wallets ready`);
@@ -185,6 +229,9 @@ const bootOne = async (i: number): Promise<void> => {
 const reader = indexerPublicDataProvider(net.indexer, net.indexerWS);
 
 const readChain = async () => {
+  if (!address) {
+    return { conditionId: "", opened: 0, matched: 0, matchedNotional: "0", coveredNotional: "0", calls: 0 };
+  }
   const state = await reader.queryContractState(address);
   if (!state) {
     return { conditionId: "", opened: 0, matched: 0, matchedNotional: "0", coveredNotional: "0", calls: 0 };
