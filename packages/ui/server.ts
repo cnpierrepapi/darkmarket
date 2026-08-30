@@ -129,13 +129,20 @@ const BOOT_ATTEMPTS = Number(process.env.DARKMARKET_BOOT_ATTEMPTS ?? "3");
 const bringUpChain = async (): Promise<void> => {
   say(address ? `checking contract ${address.slice(0, 16)}...` : "no contract yet, waiting for the chain");
 
-  for (let i = 0; i < 300; i++) {
+  // A cold container downloads about a gigabyte of proving keys before the
+  // proof server answers, so this waits in minutes rather than seconds and
+  // says so, instead of looking hung.
+  const waitSeconds = Number(process.env.DARKMARKET_CHAIN_WAIT_S ?? "1200");
+  let up = false;
+  for (let i = 0; i < waitSeconds; i++) {
     try {
       const r = await fetch("http://127.0.0.1:6300/health");
-      if (r.ok) { say(`proof server up after ${i}s`); break; }
+      if (r.ok) { say(`proof server up after ${i}s`); up = true; break; }
     } catch { /* not yet */ }
+    if (i > 0 && i % 60 === 0) say(`still waiting for the proof server (${i / 60}m)`);
     await new Promise((r) => setTimeout(r, 1000));
   }
+  if (!up) say("proof server never answered; the chain did not come up");
 
   // An address inherited from configuration is worth nothing if it does not
   // exist on the chain this container just started. Check before trusting it,
