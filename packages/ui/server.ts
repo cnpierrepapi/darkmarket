@@ -120,12 +120,14 @@ const ownPrivateState = (index: number, coinPublicKey: Uint8Array) =>
     accountId: Buffer.from(coinPublicKey).toString("hex"),
   } as never);
 
+// Reading the ledger needs no wallet, so it works while the wallets boot.
+const reader = indexerPublicDataProvider(net.indexer, net.indexerWS);
+
 const BOOT_ATTEMPTS = Number(process.env.DARKMARKET_BOOT_ATTEMPTS ?? "3");
 
 /** Wait for the local chain's proof server and indexer, then deploy. */
 const bringUpChain = async (): Promise<void> => {
-  if (address) return;
-  say("no contract yet, waiting for the chain");
+  say(address ? `checking contract ${address.slice(0, 16)}...` : "no contract yet, waiting for the chain");
 
   for (let i = 0; i < 300; i++) {
     try {
@@ -133,6 +135,20 @@ const bringUpChain = async (): Promise<void> => {
       if (r.ok) { say(`proof server up after ${i}s`); break; }
     } catch { /* not yet */ }
     await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  // An address inherited from configuration is worth nothing if it does not
+  // exist on the chain this container just started. Check before trusting it,
+  // otherwise every wallet fails to join something that was never here.
+  if (address) {
+    try {
+      const existing = await reader.queryContractState(address);
+      if (existing) { say("contract found on chain"); return; }
+      say("configured contract is not on this chain, deploying a fresh one");
+    } catch {
+      say("could not read the configured contract, deploying a fresh one");
+    }
+    address = "";
   }
 
   for (let attempt = 1; attempt <= 8; attempt++) {
@@ -229,8 +245,6 @@ const bootOne = async (i: number): Promise<void> => {
   say(`boot done, ${readyCount()}/${PARTICIPANTS} wallets ready`);
 })();
 
-// Reading the ledger needs no wallet, so it works while the wallets boot.
-const reader = indexerPublicDataProvider(net.indexer, net.indexerWS);
 
 const readChain = async () => {
   if (!address) {
