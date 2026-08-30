@@ -6,62 +6,125 @@
 <title>DARKMARKET</title>
 <style>
   :root{
-    --bg:#0d1017; --panel:#141922; --panel2:#1a202b; --line:#232b38;
-    --ink:#eef2f8; --dim:#8b95a7; --acc:#2d7ff9;
-    --yes:#27ae8a; --yes-bg:rgba(39,174,138,.14);
-    --no:#e0525f; --no-bg:rgba(224,82,95,.14);
-    --warn:#f0a63a;
+    --bg:#0e1013; --panel:#1a1d21; --panel2:#212429; --line:#2a2e34;
+    --ink:#f2f4f7; --dim:#8b929c; --dim2:#6d747e;
+    --acc:#2b6cff; --acc2:#1e5ae0;
+    --yes:#39b57a; --yes-bg:rgba(46,125,84,.28);
+    --no:#e2606b; --no-bg:rgba(150,52,60,.28);
+    --warn:#e8a33d;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif}
-  a{color:var(--acc)}
-  header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:9}
-  .bar{max-width:1180px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px}
-  .logo{font-size:17px;letter-spacing:.16em;font-weight:700}
-  .badge{padding:3px 8px;border-radius:5px;font-size:10.5px;letter-spacing:.09em;
-    background:var(--panel2);border:1px solid var(--line);color:var(--dim);
-    font-family:ui-monospace,monospace}
-  nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
-  nav button{background:none;border:0;color:var(--dim);padding:8px 13px;border-radius:7px;
-    cursor:pointer;font-size:13.5px;font-weight:500}
-  nav button.on{background:var(--panel2);color:var(--ink)}
-  main{max-width:1180px;margin:0 auto;padding:24px}
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif}
+  a{color:var(--acc);text-decoration:none}
+  ::-webkit-scrollbar{height:6px;width:8px}
+  ::-webkit-scrollbar-thumb{background:#33383f;border-radius:99px}
+
+  header{position:sticky;top:0;background:var(--bg);z-index:20}
+  .bar{display:flex;align-items:center;gap:18px;padding:12px 20px}
+  .brand{display:flex;align-items:center;gap:10px;cursor:pointer;flex:none}
+  .mark{width:27px;height:27px;border:2px solid var(--ink);border-radius:6px;
+    display:grid;place-items:center;transform:skewX(-9deg)}
+  .mark i{display:block;width:9px;height:9px;border-left:2px solid var(--ink);
+    border-bottom:2px solid var(--ink);transform:rotate(-45deg)}
+  .word{font-size:21px;font-weight:700;letter-spacing:-.02em}
+  .search{flex:1;max-width:760px;position:relative}
+  .search input{width:100%;background:var(--panel);border:1px solid transparent;
+    border-radius:999px;padding:11px 46px 11px 42px;color:var(--ink);font-size:14px}
+  .search input:focus{outline:none;border-color:#3a4048}
+  .search .mag{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--dim2)}
+  .search .slash{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--dim2)}
+  .actions{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
+  .ghost{color:var(--dim);font-size:13.5px;display:flex;align-items:center;gap:6px}
+  .btn-o{border:1px solid #383e46;background:transparent;color:var(--ink);
+    padding:8px 16px;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .btn-b{border:0;background:var(--acc);color:#fff;padding:9px 17px;border-radius:8px;
+    font-size:13.5px;font-weight:600;cursor:pointer}
+  .btn-b:hover{background:var(--acc2)}
+
+  .cats{display:flex;align-items:center;gap:22px;padding:0 20px 12px;overflow-x:auto;
+    white-space:nowrap;scrollbar-width:none}
+  .cats::-webkit-scrollbar{display:none}
+  .cats a{color:var(--dim);font-size:14px;font-weight:500;cursor:pointer}
+  .cats a:hover{color:var(--ink)}
+  .cats a.on{color:var(--ink);font-weight:700}
+  .cats .sep{color:#3a4048}
+
+  main{padding:20px 20px 60px}
   .tab{display:none} .tab.on{display:block}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
-  h2{font-size:11px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;
+
+  .h1row{display:flex;align-items:center;gap:14px;margin:6px 0 20px}
+  h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.02em}
+  .h1row .tools{margin-left:auto;display:flex;gap:16px;color:var(--dim);font-size:16px}
+
+  .chips{display:flex;align-items:center;gap:8px;overflow-x:auto;white-space:nowrap;
+    padding-bottom:18px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{padding:7px 15px;border-radius:8px;font-size:13.5px;color:var(--dim);
+    cursor:pointer;background:transparent;border:0;font-weight:500}
+  .chip.on{background:rgba(43,108,255,.16);color:#6f9dff;font-weight:600}
+  .chip:hover{color:var(--ink)}
+
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .mcard{background:var(--panel);border:1px solid #23262b;border-radius:12px;
+    padding:14px 14px 10px;cursor:pointer;display:flex;flex-direction:column;min-height:176px}
+  .mcard:hover{border-color:#3a4048}
+  .mcard.sel{border-color:var(--acc)}
+  .mhead{display:flex;gap:11px;align-items:flex-start}
+  .mico{width:40px;height:40px;border-radius:8px;flex:none;object-fit:cover;background:#2a2e34}
+  .mq{font-size:15px;font-weight:600;line-height:1.28;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .gauge{margin-left:auto;flex:none;text-align:center;width:54px}
+  .gauge .g{font-size:17px;font-weight:700}
+  .gauge .l{font-size:10.5px;color:var(--dim2)}
+  .orow{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .oname{font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .opct{font-size:14.5px;font-weight:700;flex:none}
+  .ybtn,.nbtn{border:0;border-radius:6px;padding:6px 15px;font-size:12.5px;font-weight:700;
+    cursor:pointer;flex:none}
+  .ybtn{background:var(--yes-bg);color:#4cc98c}
+  .nbtn{background:var(--no-bg);color:#ee7a84}
+  .ybtn:hover{background:#2e7d54;color:#fff}
+  .nbtn:hover{background:#96343c;color:#fff}
+  .mfoot{margin-top:auto;padding-top:13px;display:flex;align-items:center;gap:8px;
+    font-size:12px;color:var(--dim2)}
+  .mfoot .ic{margin-left:auto;display:flex;gap:11px;opacity:.65}
+
+  .wrap{max-width:1180px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid #23262b;border-radius:12px;padding:18px}
+  h2{font-size:11px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;
     margin:0 0 12px;font-weight:600}
-  .lede{color:var(--dim);max-width:680px;margin:0 0 20px}
+  .lede{color:var(--dim);max-width:700px;margin:0 0 20px}
   .cols{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
   @media(max-width:900px){.cols{grid-template-columns:1fr}}
-
-  .q{font-size:19px;font-weight:600;line-height:1.3;margin:0 0 10px}
+  .crumb{color:var(--dim);font-size:13px;margin-bottom:14px}
+  .crumb a{cursor:pointer}
+  .q{font-size:21px;font-weight:700;line-height:1.25;margin:0 0 12px}
   .odds{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}
   .odd{border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--panel2)}
   .odd .side{font-size:11.5px;color:var(--dim);letter-spacing:.08em}
-  .odd .pct{font-size:25px;font-weight:700;font-family:ui-monospace,monospace}
+  .odd .pct{font-size:26px;font-weight:700}
   .odd.y .pct{color:var(--yes)} .odd.n .pct{color:var(--no)}
-
   label{display:block;font-size:11.5px;color:var(--dim);letter-spacing:.08em;
     text-transform:uppercase;margin:14px 0 6px}
-  select,input{width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);
-    background:#0f131b;color:var(--ink);font-size:15px;font-family:ui-monospace,monospace}
+  select,input.f{width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);
+    background:#141619;color:var(--ink);font-size:14px}
   .sides{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .sides button{padding:12px;border-radius:9px;border:1px solid var(--line);
-    background:transparent;color:var(--dim);cursor:pointer;font-weight:650;font-size:14px}
-  .sides button.sel[data-s="YES"]{background:var(--yes-bg);color:var(--yes);border-color:rgba(39,174,138,.4)}
-  .sides button.sel[data-s="NO"]{background:var(--no-bg);color:var(--no);border-color:rgba(224,82,95,.4)}
-  .cta{width:100%;margin-top:14px;padding:13px;border-radius:9px;border:0;background:var(--acc);
-    color:#fff;font-weight:650;font-size:14.5px;cursor:pointer}
+  .sides button{padding:12px;border-radius:8px;border:1px solid var(--line);
+    background:transparent;color:var(--dim);cursor:pointer;font-weight:700;font-size:14px}
+  .sides button.sel[data-s="YES"]{background:var(--yes-bg);color:#4cc98c;border-color:transparent}
+  .sides button.sel[data-s="NO"]{background:var(--no-bg);color:#ee7a84;border-color:transparent}
+  .cta{width:100%;margin-top:14px;padding:13px;border-radius:8px;border:0;background:var(--acc);
+    color:#fff;font-weight:700;font-size:14.5px;cursor:pointer}
+  .cta:hover{background:var(--acc2)}
   .cta:disabled{opacity:.35;cursor:not-allowed}
-
   .pos{border:1px solid var(--line);border-radius:10px;padding:13px;background:var(--panel2);
     margin-bottom:10px}
   .pos .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .pill{padding:2px 8px;border-radius:5px;font-size:11px;font-family:ui-monospace,monospace;
     border:1px solid var(--line)}
-  .pill.YES{color:var(--yes);border-color:rgba(39,174,138,.4)}
-  .pill.NO{color:var(--no);border-color:rgba(224,82,95,.4)}
+  .pill.YES{color:var(--yes);border-color:rgba(57,181,122,.4)}
+  .pill.NO{color:var(--no);border-color:rgba(226,96,107,.4)}
   .mono{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
     overflow-wrap:anywhere}
   .acts{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
@@ -75,137 +138,148 @@
   .row{display:flex;justify-content:space-between;padding:7px 0}
   .row + .row{border-top:1px solid var(--line)}
   .k{color:var(--dim);font-size:13px}
-  .v{font-family:ui-monospace,monospace;font-size:13.5px}
+  .v{font-family:ui-monospace,monospace;font-size:13px}
   .log{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--dim);
-    background:#0f131b;border:1px solid var(--line);border-radius:9px;padding:11px;
+    background:#141619;border:1px solid var(--line);border-radius:9px;padding:11px;
     height:200px;overflow:auto;white-space:pre-wrap}
   .err{color:var(--no);font-size:12.5px;margin-top:9px;font-family:ui-monospace,monospace}
   .note{color:var(--dim);font-size:12.5px;margin-top:10px}
-  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
-  .mcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;
-    cursor:pointer;display:flex;flex-direction:column;gap:10px}
-  .mcard:hover{border-color:var(--acc)}
-  .mcard.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
-  .mq{font-size:14.5px;font-weight:600;line-height:1.35}
-  .mbar{height:6px;border-radius:99px;overflow:hidden;display:flex;background:#0f131b}
-  .mbar .y{background:var(--yes)} .mbar .n{background:var(--no)}
-  .mrow{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:12.5px}
   .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
   @media(max-width:1000px){.three{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+
 <header>
   <div class="bar">
-    <span class="logo">DARKMARKET</span>
-    <span class="badge" id="netTag">-</span>
-    <span class="badge" id="walletTag">-</span>
-    <nav>
-      <button class="on" data-t="markets">Markets</button>
-      <button data-t="trade">Trade</button>
-      <button data-t="book">Positions</button>
-      <button data-t="chain">What the chain sees</button>
-    </nav>
+    <div class="brand" id="home">
+      <div class="mark"><i></i></div>
+      <div class="word">Darkmarket</div>
+    </div>
+    <div class="search">
+      <span class="mag">&#9906;</span>
+      <input id="search" placeholder="Search markets..." autocomplete="off">
+      <span class="slash">/</span>
+    </div>
+    <div class="actions">
+      <span class="ghost">&#9432; How it works</span>
+      <button class="btn-o" data-t="book">Positions</button>
+      <button class="btn-b" data-t="chain">What the chain sees</button>
+    </div>
   </div>
+  <div class="cats" id="cats"></div>
 </header>
 
 <main>
+
   <section class="tab on" id="t-markets">
-    <p class="lede">
-      Live Polymarket markets. Pick one and your position on it is sealed on
-      Midnight instead of sitting in the public book.
-    </p>
+    <div class="h1row">
+      <h1>All markets</h1>
+      <div class="tools"><span>&#9906;</span><span>&#9776;</span><span>&#9734;</span></div>
+    </div>
+    <div class="chips" id="chips"></div>
     <div class="mgrid" id="mgrid"><div class="empty">loading markets...</div></div>
   </section>
 
   <section class="tab" id="t-trade">
-    <div class="cols">
-      <div class="card">
-        <h2>Open a position</h2>
-        <label>Wallet</label>
-        <select id="wallet"></select>
-        <label>Side</label>
-        <div class="sides">
-          <button data-s="YES" class="sel" id="sYES">YES</button>
-          <button data-s="NO" id="sNO">NO</button>
-        </div>
-        <label>Size</label>
-        <input id="size" type="number" min="1" value="500">
-        <button class="cta" id="open">Open position</button>
-        <div class="note">
-          What reaches Midnight is a commitment. Nobody watching the chain can
-          tell your side or your size, only that a position exists and when.
-        </div>
-        <div class="err" id="openErr"></div>
-      </div>
-
-      <div>
+    <div class="wrap">
+      <div class="crumb"><a id="backToMarkets">All markets</a> &rsaquo; <span id="crumbCat">market</span></div>
+      <div class="cols">
         <div class="card">
-          <div class="mrow" style="margin-bottom:8px"><span class="k">trading</span>
-            <span class="v"><a href="#" id="backToMarkets">change market</a></span></div>
-          <p class="q" id="q">pick a market first</p>
-          <div class="odds">
-            <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
-            <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
+          <h2>Open a position</h2>
+          <label for="wallet">Midnight wallet</label>
+          <select id="wallet"></select>
+          <label>Side</label>
+          <div class="sides">
+            <button data-s="YES" class="sel" id="sYES">YES</button>
+            <button data-s="NO" id="sNO">NO</button>
           </div>
-          <div class="row"><span class="k">condition id</span><span class="v" id="cond">-</span></div>
-          <div class="row"><span class="k">midnight contract</span><span class="v" id="mc">-</span></div>
+          <label for="size">Size</label>
+          <input class="f" id="size" type="number" value="400" min="1">
+          <button class="cta" id="open">Open position</button>
+          <div class="note">
+            Only a 32-byte commitment reaches Midnight. Side and size stay off the ledger
+            until a match combines two of them.
+          </div>
+          <div class="err" id="openErr"></div>
         </div>
 
-        <div class="card" style="margin-top:16px">
-          <h2>Open orders you can act on</h2>
-          <div id="openList"><div class="empty">Nothing open yet.</div></div>
-          <div class="err" id="actErr"></div>
+        <div>
+          <div class="card">
+            <div class="q" id="q">-</div>
+            <div class="odds">
+              <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
+              <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
+            </div>
+            <div class="row"><span class="k">condition id</span><span class="v" id="cond">-</span></div>
+            <div class="row"><span class="k">midnight contract</span><span class="v" id="mc">-</span></div>
+            <div class="row"><span class="k">network</span><span class="v" id="netTag">-</span></div>
+            <div class="row"><span class="k">wallets</span><span class="v" id="walletTag">-</span></div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <h2>Open orders you can act on</h2>
+            <div id="openList"><div class="empty">Nothing open yet.</div></div>
+            <div class="err" id="actErr"></div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <section class="tab" id="t-book">
-    <p class="lede">
-      Every position and where it ended up. A matched pair never reached the open
-      market at all. A covered one did, and left a transaction on Polygon.
-    </p>
-    <div class="three">
-      <div>
-        <h2>Open</h2>
-        <div class="card" id="colOpen"><div class="empty">none</div></div>
-      </div>
-      <div>
-        <h2>Matched on Midnight</h2>
-        <div class="card" id="colMatched"><div class="empty">none</div></div>
-      </div>
-      <div>
-        <h2>Covered on Polygon</h2>
-        <div class="card" id="colCovered"><div class="empty">none</div></div>
+    <div class="wrap">
+      <div class="h1row"><h1>Positions</h1></div>
+      <p class="lede">
+        Everything opened this session, and where it ended up. Open orders are still
+        looking for the other side. Matched ones never reached an open market at all.
+        Covered ones went to Polygon, and the link is the transaction.
+      </p>
+      <div class="three">
+        <div>
+          <h2>Open</h2>
+          <div class="card" id="colOpen"><div class="empty">none</div></div>
+        </div>
+        <div>
+          <h2>Matched on Midnight</h2>
+          <div class="card" id="colMatched"><div class="empty">none</div></div>
+        </div>
+        <div>
+          <h2>Covered on Polygon</h2>
+          <div class="card" id="colCovered"><div class="empty">none</div></div>
+        </div>
       </div>
     </div>
   </section>
 
   <section class="tab" id="t-chain">
-    <p class="lede">
-      The difference is not what this page shows you. It is what is left on a
-      public chain afterwards.
-    </p>
-    <div class="cols">
-      <div class="card">
-        <h2>On Midnight, publicly</h2>
-        <div class="row"><span class="k">positions opened</span><span class="v" id="cOpened">0</span></div>
-        <div class="row"><span class="k">matches</span><span class="v" id="cMatched">0</span></div>
-        <div class="row"><span class="k">matched notional</span><span class="v" id="cMN">0</span></div>
-        <div class="row"><span class="k">covered notional</span><span class="v" id="cCN">0</span></div>
-        <div class="row"><span class="k">calls</span><span class="v" id="cCalls">0</span></div>
-        <div class="note">
-          Counts and totals. Not one individual side or size, and no link from a
-          commitment back to the wallet that opened it.
+    <div class="wrap">
+      <div class="h1row"><h1>What the chain sees</h1></div>
+      <p class="lede">
+        The whole point, in numbers. Anyone can read this. Nobody can read a single
+        position out of it.
+      </p>
+      <div class="cols">
+        <div class="card">
+          <h2>On Midnight, publicly</h2>
+          <div class="row"><span class="k">positions opened</span><span class="v" id="cOpened">0</span></div>
+          <div class="row"><span class="k">matches</span><span class="v" id="cMatched">0</span></div>
+          <div class="row"><span class="k">matched notional</span><span class="v" id="cMN">0</span></div>
+          <div class="row"><span class="k">covered notional</span><span class="v" id="cCN">0</span></div>
+          <div class="row"><span class="k">calls</span><span class="v" id="cCalls">0</span></div>
+          <div class="note">
+            Totals, never a line item. A size only ever reaches the ledger inside a proof
+            that has already combined it with another one.
+          </div>
         </div>
-      </div>
-      <div class="card">
-        <h2>Live</h2>
-        <div class="log" id="log">waiting...</div>
+        <div class="card">
+          <h2>Live</h2>
+          <div class="log" id="log">waiting...</div>
+        </div>
       </div>
     </div>
   </section>
+
 </main>
 
 <script src="config.js"></script>
@@ -231,19 +305,24 @@ async function pickBackend(){
   }
 }
 function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c];
+  });
+}
+
 var side = "YES";
 var walletCount = 5;
 var markets = [];
 var selected = null;
+var filterCat = "All";
+var query = "";
 
 function showTab(name){
-  var tabs = document.querySelectorAll("nav button");
-  for (var j=0;j<tabs.length;j++){
-    tabs[j].classList.toggle("on", tabs[j].dataset.t === name);
-  }
   var secs = document.querySelectorAll(".tab");
   for (var j=0;j<secs.length;j++) secs[j].classList.remove("on");
   document.getElementById("t-" + name).classList.add("on");
+  window.scrollTo(0,0);
 }
 
 // Polymarket quotes each outcome as a probability, and the pair sums to one.
@@ -255,25 +334,100 @@ function pctPair(yes, no){
   return [y, 100 - y];
 }
 
+function money(n){
+  if (!n) return "";
+  if (n >= 1e9) return "$" + (n/1e9).toFixed(1).replace(/\.0$/,"") + "B Vol.";
+  if (n >= 1e6) return "$" + (n/1e6).toFixed(1).replace(/\.0$/,"") + "M Vol.";
+  if (n >= 1e3) return "$" + Math.round(n/1e3) + "K Vol.";
+  return "$" + Math.round(n) + " Vol.";
+}
+
+// The category bar is built from whatever came back rather than hardcoded, so it
+// always matches the markets sitting underneath it.
+function paintCats(){
+  var seen = [];
+  for (var i=0;i<markets.length;i++){
+    var c = markets[i].category;
+    if (c && seen.indexOf(c) < 0) seen.push(c);
+  }
+  $("cats").innerHTML =
+    '<a class="on" data-c="All">&#8599; Trending</a><span class="sep">|</span>' +
+    seen.map(function(c){ return '<a data-c="' + esc(c) + '">' + esc(c) + '</a>'; }).join("");
+
+  $("chips").innerHTML = ["All"].concat(seen).map(function(c){
+    return '<button class="chip" data-c="' + esc(c) + '">' + esc(c) + '</button>';
+  }).join("");
+
+  var link = $("cats").querySelectorAll("a");
+  for (var k=0;k<link.length;k++){
+    link[k].onclick = (function(c){
+      return function(){ filterCat = c; showTab("markets"); paintMarkets(); };
+    })(link[k].dataset.c);
+  }
+  var chip = $("chips").querySelectorAll(".chip");
+  for (var k=0;k<chip.length;k++){
+    chip[k].onclick = (function(c){
+      return function(){ filterCat = c; paintMarkets(); };
+    })(chip[k].dataset.c);
+  }
+}
+
+function visibleMarkets(){
+  return markets.filter(function(m){
+    if (filterCat !== "All" && m.category !== filterCat) return false;
+    if (query && m.question.toLowerCase().indexOf(query) < 0) return false;
+    return true;
+  });
+}
+
+function paintChipState(){
+  var chip = document.querySelectorAll(".chip");
+  for (var k=0;k<chip.length;k++) chip[k].classList.toggle("on", chip[k].dataset.c === filterCat);
+  var link = $("cats").querySelectorAll("a");
+  for (var k=0;k<link.length;k++) link[k].classList.toggle("on", link[k].dataset.c === filterCat);
+}
+
+function paintMarkets(){
+  var list = visibleMarkets();
+  paintChipState();
+  if (!list.length){
+    $("mgrid").innerHTML = '<div class="empty">nothing matches that</div>';
+    return;
+  }
+  $("mgrid").innerHTML = list.map(function(m){
+    var p = pctPair(m.yesPrice, m.noPrice);
+    var i = markets.indexOf(m);
+    var ico = m.icon
+      ? '<img class="mico" src="' + esc(m.icon) + '" alt="">'
+      : '<div class="mico"></div>';
+    return '<div class="mcard' + (selected && selected.conditionId === m.conditionId ? " sel" : "") +
+      '" onclick="pickMarket(' + i + ')">' +
+      '<div class="mhead">' + ico +
+        '<div class="mq">' + esc(m.question) + '</div>' +
+        '<div class="gauge"><div class="g">' + p[0] + '%</div><div class="l">Yes</div></div>' +
+      '</div>' +
+      '<div class="orow">' +
+        '<span class="oname">Yes</span><span class="opct">' + p[0] + '%</span>' +
+        '<button class="ybtn" onclick="event.stopPropagation();pickSide(' + i + ',&quot;YES&quot;)">Yes</button>' +
+        '<button class="nbtn" onclick="event.stopPropagation();pickSide(' + i + ',&quot;NO&quot;)">No</button>' +
+      '</div>' +
+      '<div class="mfoot"><span>' + esc(money(m.volume)) + '</span>' +
+        (m.category ? '<span>&middot; ' + esc(m.category) + '</span>' : '') +
+        '<span class="ic"><span>&#9993;</span><span>&#9734;</span></span></div>' +
+      '</div>';
+  }).join("");
+}
+
 async function loadMarkets(){
   try{
     var r = await api("/api/markets");
     markets = r.markets || [];
     if (!markets.length){
-      $("mgrid").innerHTML = '<div class="empty">' + (r.error || "no markets available") + '</div>';
+      $("mgrid").innerHTML = '<div class="empty">' + esc(r.error || "no markets available") + '</div>';
       return;
     }
-    $("mgrid").innerHTML = markets.map(function(m, i){
-      var p = pctPair(m.yesPrice, m.noPrice);
-      return '<div class="mcard' + (selected && selected.conditionId === m.conditionId ? " sel" : "") +
-        '" onclick="pickMarket(' + i + ')">' +
-        '<div class="mq">' + m.question + '</div>' +
-        '<div class="mbar"><div class="y" style="flex:' + p[0] + '"></div>' +
-        '<div class="n" style="flex:' + p[1] + '"></div></div>' +
-        '<div class="mrow"><span style="color:var(--yes)">YES ' + p[0] + '%</span>' +
-        '<span style="color:var(--no)">NO ' + p[1] + '%</span></div>' +
-        '</div>';
-    }).join("");
+    paintCats();
+    paintMarkets();
   } catch(e){
     $("mgrid").innerHTML = '<div class="empty">could not reach the backend</div>';
   }
@@ -285,20 +439,36 @@ window.pickMarket = function(i){
   showTab("trade");
 };
 
+window.pickSide = function(i, s){
+  selected = markets[i];
+  side = s;
+  $("sYES").classList.toggle("sel", s === "YES");
+  $("sNO").classList.toggle("sel", s === "NO");
+  paintSelected();
+  showTab("trade");
+};
+
 function paintSelected(){
   if (!selected) return;
   var p = pctPair(selected.yesPrice, selected.noPrice);
   $("q").textContent = selected.question;
   $("oy").textContent = p[0] + "%";
   $("on_").textContent = p[1] + "%";
+  $("crumbCat").textContent = selected.category || "market";
   $("cond").textContent = selected.conditionId.slice(0,12) + "..." + selected.conditionId.slice(-6);
 }
 
-var navButtons = document.querySelectorAll("nav button");
-for (var i=0;i<navButtons.length;i++){
-  navButtons[i].onclick = (function(b){ return function(){ showTab(b.dataset.t); }; })(navButtons[i]);
+var headBtns = document.querySelectorAll("[data-t]");
+for (var i=0;i<headBtns.length;i++){
+  headBtns[i].onclick = (function(b){ return function(){ showTab(b.dataset.t); }; })(headBtns[i]);
 }
+$("home").onclick = function(){ showTab("markets"); };
 $("backToMarkets").onclick = function(e){ e.preventDefault(); showTab("markets"); };
+$("search").oninput = function(){
+  query = this.value.trim().toLowerCase();
+  showTab("markets");
+  paintMarkets();
+};
 
 $("sYES").onclick = function(){ side="YES"; $("sYES").classList.add("sel"); $("sNO").classList.remove("sel"); };
 $("sNO").onclick  = function(){ side="NO";  $("sNO").classList.add("sel");  $("sYES").classList.remove("sel"); };
@@ -349,9 +519,10 @@ async function refresh(){
     walletCount = s.wallets.length;
     $("netTag").textContent = s.network;
     var ready = s.wallets.filter(function(w){ return w.ready; }).length;
-    $("walletTag").textContent = ready + "/" + s.wallets.length + " wallets";
-    $("cond").textContent = (s.conditionId||"").slice(0,12) + "..." + (s.conditionId||"").slice(-6);
-    $("mc").textContent = (s.contract||"").slice(0,10) + "..." + (s.contract||"").slice(-6);
+    $("walletTag").textContent = ready + "/" + s.wallets.length + " ready";
+    $("mc").textContent = s.contract
+      ? s.contract.slice(0,10) + "..." + s.contract.slice(-6)
+      : "deploying...";
 
     var sel = $("wallet");
     if (sel.options.length !== s.wallets.length){

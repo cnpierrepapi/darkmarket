@@ -19,6 +19,12 @@ export type Market = {
   noTokenId: string;
   yesPrice: number;
   noPrice: number;
+  // Presentation only. The card wants a picture, a category and a volume,
+  // and Gamma already carries all three.
+  icon?: string;
+  volume?: number;
+  category?: string;
+  endDate?: string;
 };
 
 export type Order = {
@@ -135,6 +141,10 @@ export async function listMarkets(limit = 12): Promise<Market[]> {
         noTokenId: tokenIds[1],
         yesPrice: prices[0],
         noPrice: prices[1],
+        icon: m.icon ?? m.image ?? undefined,
+        volume: Number(m.volume ?? m.volumeNum ?? 0) || undefined,
+        category: (m.events?.[0]?.category ?? m.category ?? undefined) || undefined,
+        endDate: m.endDate ?? undefined,
       });
       if (out.length >= limit) break;
     } catch {

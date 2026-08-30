@@ -1,0 +1,38 @@
+# An overlay on the last image that built cleanly.
+#
+# The toolchain layers below (compact, foundry, solc, the proof-server loader
+# fix) take the better part of an hour to rebuild and none of them have
+# changed. This copies the source over that image and rebuilds only what the
+# source affects.
+ARG BASE=europe-west1-docker.pkg.dev/backup-505213/darkmarket/app:v4
+FROM ${BASE}
+
+WORKDIR /app
+COPY packages ./packages
+COPY scripts ./scripts
+COPY web ./web
+COPY start.midnight-only.ts start.dev.ts package.json tsconfig.json ./
+
+RUN bun install
+RUN bun -e " \
+  const fs = require('fs'); const path = require('path'); \
+  const pkg = JSON.parse(fs.readFileSync('package.json','utf8')); \
+  for (const pattern of pkg.workspaces || []) { \
+    const glob = new Bun.Glob(pattern); \
+    for (const dir of glob.scanSync({onlyFiles:false})) { \
+      const p = path.join(dir,'package.json'); \
+      if (!fs.existsSync(p)) continue; \
+      const wp = JSON.parse(fs.readFileSync(p,'utf8')); \
+      if (!wp.name) continue; \
+      const [scope,name] = wp.name.startsWith('@') ? wp.name.split('/') : [null,wp.name]; \
+      const target = path.resolve(dir); \
+      const linkDir = scope ? path.join('node_modules',scope) : 'node_modules'; \
+      fs.mkdirSync(linkDir,{recursive:true}); \
+      const link = path.join(linkDir,name); \
+      if (!fs.existsSync(link)) { fs.symlinkSync(target,link); } \
+    } \
+  }"
+RUN bun run build:midnight
+RUN chmod +x /app/scripts/cloud-entrypoint.sh
+
+CMD ["/app/scripts/cloud-entrypoint.sh"]

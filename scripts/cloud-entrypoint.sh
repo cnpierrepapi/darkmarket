@@ -5,13 +5,14 @@
 # binds its port immediately. A host kills a container that has not listened
 # within a few minutes, and bringing up a chain takes longer than that.
 #
-# The chain's output goes to stdout, not a file. On a hosted box a log you
-# cannot read is the same as no log at all.
+# The chain inherits stdout rather than being piped or redirected to a file.
+# A pipe here broke startup once, and a file on a hosted box is a log nobody
+# can read.
 set -u
 
 cd /app
 echo "[entrypoint] starting the chain"
-bunx orchestrator start --config start.midnight-only.ts 2>&1 | sed -u 's/^/[chain] /' &
+bunx orchestrator start --config start.midnight-only.ts &
 
 echo "[entrypoint] serving on ${PORT:-8080}"
 cd /app/packages/ui
