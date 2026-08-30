@@ -59,6 +59,13 @@ after the transaction, and that state holds totals.
 
 Front end: https://darkmarket-midnight.vercel.app
 
+Nothing to install. The page talks to a backend that runs its own Midnight node,
+indexer and proof server, compiles and deploys the circuit when it boots, then
+brings up five wallets. Cold start to five wallets ready is about two minutes.
+
+The Midnight contract id is on the trade page rather than in here, because it
+changes every time that container restarts. The chain restarts with it.
+
 Polygon vault (Amoy): [0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B](https://amoy.polygonscan.com/address/0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B)
 
 Midnight contract on preprod:
@@ -79,17 +86,19 @@ MIDNIGHT_NETWORK_ID=preprod bun run packages/executor/src/ledger-read.ts \
 Worth saying plainly rather than leaving a judge to find it.
 
 The circuits, the proofs and the five wallets are real. Each wallet has its own
-key, its own database and its own balance, and signs its own transactions.
+key, its own database, its own balance, and signs its own transactions.
 
 The Polygon side is real. The vault is deployed, holds deposits and has settled
 transactions you can open on Polygonscan.
 
-**Live trading runs on a local Midnight chain, not preprod.** Preprod's faucet
-rejects addresses that Midnight's own codec validates, and the wallet we funded
-generates no dust, so it cannot pay a transaction fee. That is measured, not
-assumed: the indexer reports zero dust generation items for the address. The
-preprod contract above is real and readable and proves the same circuit deploys
-to a public Midnight network, but the epochs happen on a chain we start.
+**Trading runs on a Midnight chain we start, not on preprod.** The chain is real
+and so are the proofs on it, but it belongs to the container and it dies with the
+container. Preprod does not work for us. Its faucet rejects addresses that
+Midnight's own codec validates, and the wallet we did fund generates no dust, so
+it cannot pay a fee. That is measured rather than assumed: the indexer reports
+zero dust generation items for the address. The preprod contract above is real
+and readable and proves the circuit deploys to a public Midnight network. The
+trading happens on ours.
 
 **Polymarket's orderbook is mainnet-only.** Its CTF Exchange is deployed on Amoy
 at `0xdFE02Eb6733538f8Ea35D585af8DE5958AD99E40`, so the contracts exist on
@@ -112,17 +121,20 @@ is something to verify against.
 
 ## Running it
 
-Everything runs in Docker: a Midnight node, an indexer, a proof server, a local
-EVM chain and the interface.
+You do not have to. The link above is the same container, already running. This is
+for reading the thing yourself.
+
+One image holds the lot: a Midnight node, an indexer, a proof server and the
+interface. The Polygon side is not local, it points at Amoy.
 
 ```
 docker build -t darkmarket .
-docker run -d --name dm -p 4000:4000 darkmarket
+docker run -d --name dm -p 4000:8080 darkmarket
 ```
 
-The container starts its own chain, deploys the circuit, and boots five wallets.
-A cold start downloads about a gigabyte of proving keys, so give it time; the
-page loads immediately and reports progress while it happens.
+The container starts its chain, deploys the circuit, and boots five wallets. A
+cold start pulls down about a gigabyte of proving keys, so give it a minute. The
+page comes up straight away and tells you where it has got to while it works.
 
 ## Credit
 
