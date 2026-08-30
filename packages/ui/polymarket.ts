@@ -121,6 +121,12 @@ export async function listMarkets(limit = 12): Promise<Market[]> {
       const prices = (JSON.parse(m.outcomePrices ?? "[]") as string[]).map(Number);
       if (tokenIds.length < 2 || prices.length < 2) continue;
       if (!m.conditionId) continue;
+
+      // Skip anything already decided. Volume ordering surfaces finished
+      // matches sitting at 0/100, and there is nothing to hide in a market
+      // whose answer is known.
+      const y = prices[0];
+      if (!Number.isFinite(y) || y <= 0.05 || y >= 0.95) continue;
       out.push({
         conditionId: m.conditionId,
         slug: m.slug,

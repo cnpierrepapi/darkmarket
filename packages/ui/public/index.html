@@ -210,7 +210,26 @@
 
 <script src="config.js"></script>
 <script>
-var API = (window.DARKMARKET_API || "").replace(/\/$/, "");
+// Two candidates: whatever config.js points at, and a backend running on the
+// machine viewing the page. The hosted one wins when it answers; the local one
+// keeps the page usable while the hosted chain is still coming up.
+var API_CANDIDATES = [
+  (window.DARKMARKET_API || "").replace(/\/$/, ""),
+  "http://localhost:4000"
+].filter(function(x, i, a){ return x && a.indexOf(x) === i; });
+var API = API_CANDIDATES[0] || "";
+
+async function pickBackend(){
+  for (var i = 0; i < API_CANDIDATES.length; i++){
+    try{
+      var c = new AbortController();
+      var t = setTimeout(function(){ c.abort(); }, 4000);
+      var r = await fetch(API_CANDIDATES[i] + "/api/state", { signal: c.signal });
+      clearTimeout(t);
+      if (r.ok){ API = API_CANDIDATES[i]; return; }
+    } catch(e){ /* try the next one */ }
+  }
+}
 function $(id){ return document.getElementById(id); }
 var side = "YES";
 var walletCount = 5;
@@ -415,8 +434,7 @@ window.coverIt = async function(id){
   refresh();
 };
 
-refresh();
-loadMarkets();
+pickBackend().then(function(){ refresh(); loadMarkets(); });
 setInterval(refresh, 4000);
 setInterval(loadMarkets, 60000);
 </script>
