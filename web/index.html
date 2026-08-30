@@ -182,6 +182,14 @@
     font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
   .how.matched{background:var(--yes-bg);color:#4cc98c}
   .how.covered{background:rgba(232,163,61,.2);color:var(--warn)}
+
+  .warm{display:flex;gap:12px;align-items:flex-start;background:rgba(43,108,255,.09);
+    border:1px solid rgba(43,108,255,.3);border-radius:10px;padding:13px 15px;
+    margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.5}
+  .warm b{color:var(--ink);display:block;margin-bottom:2px;font-size:13.5px}
+  .wspin{width:14px;height:14px;flex:none;margin-top:3px;border-radius:50%;
+    border:2px solid rgba(43,108,255,.25);border-top-color:var(--acc);
+    animation:tspin .7s linear infinite}
 </style>
 </head>
 <body>
@@ -220,6 +228,15 @@
   <section class="tab" id="t-trade">
     <div class="wrap">
       <div class="crumb"><a id="backToMarkets">All markets</a> &rsaquo; <span id="crumbCat">market</span></div>
+      <div class="warm" id="warm" style="display:none">
+        <div class="wspin"></div>
+        <div>
+          <b>The chain is starting up.</b>
+          <span id="warmDetail">Nothing is wrong. This backend sleeps when nobody is using
+          it, and a cold start builds a Midnight node, deploys the circuit and funds five
+          wallets. Takes about three and a half minutes. Prices below are live already.</span>
+        </div>
+      </div>
       <div class="cols">
         <div class="card">
           <h2>Open a position</h2>
@@ -758,7 +775,13 @@ async function refresh(){
     $("colCovered").innerHTML = covered.length ? covered.map(function(p){ return positionCard(p,false); }).join("") : '<div class="empty">none</div>';
 
     $("open").disabled = s.booting || s.busy;
-    $("open").textContent = s.busy ? "proving..." : (s.booting ? "wallets syncing..." : "Open position");
+    $("open").textContent = s.busy ? "proving..." :
+      (s.booting ? "starting up, " + readyNow + "/" + s.wallets.length + " wallets" : "Open position");
+    $("warm").style.display = s.booting ? "flex" : "none";
+    if (s.booting && readyNow > 0){
+      $("warmDetail").textContent = readyNow + " of " + s.wallets.length +
+        " wallets are up. The rest are registering for dust so they can pay a fee.";
+    }
 
     if (s.log && s.log.length){
       var el = $("log");

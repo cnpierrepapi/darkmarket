@@ -3,7 +3,9 @@
 A dark pool for prediction markets. Positions match privately on Midnight, and
 only what nobody here will take the other side of reaches the open market.
 
-Built for the MLH Midnight hackathon, 28-30 August 2026, cross-chain track.
+Built over the MLH Midnight hackathon weekend, 28-30 August 2026. It missed the
+submission window by about an hour, which turned out not to matter much, because
+the thing works and you can go and use it.
 
 ## The problem
 
@@ -59,10 +61,18 @@ after the transaction, and that state holds totals.
 
 Front end: https://darkmarket-midnight.vercel.app
 
-Nothing to install. The page talks to a backend that runs its own Midnight node,
-indexer and proof server, compiles and deploys the circuit when it boots, then
-brings up five wallets, funding four of them off the first. Cold start to all
-five ready is about three and a half minutes.
+Nothing to install. Every market has its own page at `/play/<slug>`, so you can
+link somebody straight at the game you mean.
+
+Give it a few minutes on the first click. The backend sleeps when nobody is
+using it, and waking it means starting a Midnight node, compiling and deploying
+the circuit, then bringing up five wallets and funding four of them off the
+first. About three and a half minutes from cold. The page says so while it
+happens rather than sitting there looking broken, and the market prices are live
+from the start because those do not need the chain.
+
+It sleeps because eight always-on vCPUs cost about six hundred dollars a month,
+and this is a side project.
 
 The Midnight contract id is on the trade page rather than in here, because it
 changes every time that container restarts. The chain restarts with it.
