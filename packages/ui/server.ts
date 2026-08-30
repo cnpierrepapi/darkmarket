@@ -65,6 +65,10 @@ let address = process.argv[2] ?? process.env.DARKMARKET_CONTRACT ?? "";
 const zkConfigPath = process.env.DARKMARKET_ZK_CONFIG ??
   "/app/packages/contracts-midnight/contract-round-value/src/managed";
 
+// deploy-midnight.ts sits beside this file, but it resolves the contract record
+// relative to its own directory, so it runs from the contracts package.
+const deployCwd = process.env.DARKMARKET_DEPLOY_CWD ?? "/app/packages/contracts-midnight";
+
 const net = midnightNetworkConfig;
 const urls = {
   id: net.id, indexer: net.indexer, indexerWS: net.indexerWS,
@@ -135,7 +139,7 @@ const bringUpChain = async (): Promise<void> => {
     try {
       say(`deploying the circuit (attempt ${attempt})`);
       const proc = Bun.spawn(["bun", "run", "deploy-midnight.ts"], {
-        cwd: import.meta.dir,
+        cwd: deployCwd,
         env: { ...process.env, MIDNIGHT_NETWORK_ID: NETWORK },
         stdout: "pipe",
         stderr: "pipe",
