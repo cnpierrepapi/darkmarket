@@ -8,7 +8,7 @@
 // Defaults to Amoy, because a settlement nobody can look up is not much of a
 // settlement.
 
-import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
+import { createPublicClient, createWalletClient, http, fallback, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { polygonAmoy } from "viem/chains";
 
@@ -21,7 +21,7 @@ export const VAULT_ABI = parseAbi([
 ]);
 
 export type EvmConfig = {
-  rpcUrl: string;
+  rpcUrls: string[];
   vault: `0x${string}`;
   privateKey: `0x${string}`;
   explorer: string;
@@ -32,7 +32,15 @@ export const evmConfig = (): EvmConfig | null => {
   const privateKey = process.env.EVM_EXECUTOR_PRIVATE_KEY as `0x${string}` | undefined;
   if (!vault || !privateKey) return null;
   return {
-    rpcUrl: process.env.EVM_RPC_URL ?? "https://polygon-amoy-bor-rpc.publicnode.com",
+    // More than one, because these are public nodes and they have moods. A
+    // cover failed mid-demo on a -32602 from the first one, and the exact same
+    // call went through on the same node a minute later. Nothing was wrong with
+    // the call. So: try the next node instead of failing the settlement.
+    rpcUrls: (process.env.EVM_RPC_URL ?? [
+      "https://polygon-amoy-bor-rpc.publicnode.com",
+      "https://rpc-amoy.polygon.technology",
+      "https://polygon-amoy.drpc.org",
+    ].join(",")).split(",").map((u) => u.trim()).filter(Boolean),
     vault,
     privateKey,
     explorer: process.env.EVM_EXPLORER ?? "https://amoy.polygonscan.com",
@@ -66,7 +74,10 @@ export async function settleOnPolygon(args: {
   if (!cfg) throw new Error("no EVM_VAULT_ADDRESS / EVM_EXECUTOR_PRIVATE_KEY");
 
   const account = privateKeyToAccount(cfg.privateKey);
-  const transport = http(cfg.rpcUrl);
+  const transport = fallback(
+    cfg.rpcUrls.map((u) => http(u, { retryCount: 3, retryDelay: 800 })),
+    { rank: false },
+  );
   const wallet = createWalletClient({ account, chain: polygonAmoy, transport });
   const pub = createPublicClient({ chain: polygonAmoy, transport });
 
