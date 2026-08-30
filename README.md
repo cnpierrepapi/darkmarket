@@ -61,12 +61,21 @@ Front end: https://darkmarket-midnight.vercel.app
 
 Nothing to install. The page talks to a backend that runs its own Midnight node,
 indexer and proof server, compiles and deploys the circuit when it boots, then
-brings up five wallets. Cold start to five wallets ready is about two minutes.
+brings up five wallets, funding four of them off the first. Cold start to all
+five ready is about three and a half minutes.
 
 The Midnight contract id is on the trade page rather than in here, because it
 changes every time that container restarts. The chain restarts with it.
 
-Polygon vault (Amoy): [0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B](https://amoy.polygonscan.com/address/0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B)
+Polygon vault, mainnet: [0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B](https://polygonscan.com/address/0x4b6d7c58250F5B1c38f3ba22F8cC03Fdc4f1125B)
+
+A cover that actually happened:
+[0x30f1bf5c162163807de0a499e864a38c0c290f4631602b2954a57514a74c16a5](https://polygonscan.com/tx/0x30f1bf5c162163807de0a499e864a38c0c290f4631602b2954a57514a74c16a5)
+
+Open it. Block 92929399, 235,399 gas, and the `ResidualSettled` log carries the
+Midnight contract, the epoch and Polymarket's conditionId. Read those against
+the Midnight ledger and they agree, which is the whole cross-chain claim in one
+transaction you can click.
 
 Midnight contract on preprod:
 
@@ -88,8 +97,14 @@ Worth saying plainly rather than leaving a judge to find it.
 The circuits, the proofs and the five wallets are real. Each wallet has its own
 key, its own database, its own balance, and signs its own transactions.
 
-The Polygon side is real. The vault is deployed, holds deposits and has settled
-transactions you can open on Polygonscan.
+The Polygon side is real, and it is on mainnet. Not a testnet, not a fork. The
+vault holds real POL, a cover spends real gas, and the transaction linked above
+is one you can open right now.
+
+It started on Amoy. Then the testnet faucet ran the executor dry mid-demo and
+wanted more paperwork than the gas was worth, so the vault moved to Polygon
+proper. Same address on both chains, because the deployer was on nonce zero
+either time.
 
 **Trading runs on a Midnight chain we start, not on preprod.** The chain is real
 and so are the proofs on it, but it belongs to the container and it dies with the
@@ -100,10 +115,16 @@ zero dust generation items for the address. The preprod contract above is real
 and readable and proves the circuit deploys to a public Midnight network. The
 trading happens on ours.
 
-**Polymarket's orderbook is mainnet-only.** Its CTF Exchange is deployed on Amoy
-at `0xdFE02Eb6733538f8Ea35D585af8DE5958AD99E40`, so the contracts exist on
-testnet, but there is no counterparty book there. Prices and market identity come
-from the live Polymarket API; the fill rests in our vault.
+**The residual does not reach Polymarket's own orderbook.** Worth being blunt
+about, because being on mainnet makes it easy to assume otherwise. We are on the
+same chain as Polymarket now, and the markets, prices and conditionIds are all
+live from their API. But a cover commits collateral in our vault against that
+conditionId. It does not post a signed order to their CLOB.
+
+That last hop needs API credentials and USDC, and it is a day of work, not a
+weekend of it. Everything up to it is done: the market is real, the conditionId
+is the same 32 bytes their conditional-token contract uses, and the size is the
+size that failed to match.
 
 ## The trust boundary
 
@@ -125,7 +146,7 @@ You do not have to. The link above is the same container, already running. This 
 for reading the thing yourself.
 
 One image holds the lot: a Midnight node, an indexer, a proof server and the
-interface. The Polygon side is not local, it points at Amoy.
+interface. The Polygon side is not local, it points at mainnet.
 
 ```
 docker build -t darkmarket .
