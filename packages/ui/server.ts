@@ -32,7 +32,7 @@ import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-p
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import * as Contract from "@evm-midnight/midnight-contract/contract";
-import { resolveMarket } from "./polymarket.ts";
+import { resolveMarket, listMarkets } from "./polymarket.ts";
 import { settleOnPolygon, evmConfig, type SettleResult } from "./evm.ts";
 import { allSeeds, allSeedsFromMaster, readLocalEnv, PARTICIPANTS } from "./participants.ts";
 
@@ -96,6 +96,7 @@ type Position = {
   matchedWith?: number;
   matchedBlock?: number;
   matchedAt?: string;
+  conditionId?: string;
   cover?: SettleResult & { at: string };
 };
 
@@ -109,6 +110,8 @@ let nextCoverSlot = Number(process.env.EVM_START_SLOT ?? "2");
 let booting = true;
 let busy = false;
 let bootError: string | null = null;
+let marketCache: Awaited<ReturnType<typeof listMarkets>> = [];
+let marketCachedAt = 0;
 
 const ownPrivateState = (index: number, coinPublicKey: Uint8Array) =>
   levelPrivateStateProvider({
@@ -303,6 +306,21 @@ Bun.serve({
       });
     }
 
+    if (p === "/api/markets") {
+      const now = Date.now();
+      if (!marketCache.length || now - marketCachedAt > 60000) {
+        try {
+          marketCache = await listMarkets(12);
+          marketCachedAt = now;
+        } catch (e: unknown) {
+          if (!marketCache.length) {
+            return json({ error: String((e as Error)?.message ?? e).slice(0, 160), markets: [] }, 502);
+          }
+        }
+      }
+      return json({ markets: marketCache });
+    }
+
     if (p === "/api/state") {
       let chain = { conditionId: "", opened: 0, matched: 0, matchedNotional: "0", coveredNotional: "0", calls: 0 };
       try { chain = await readChain(); } catch { /* indexer hiccup */ }
@@ -330,7 +348,7 @@ Bun.serve({
     if (p === "/api/open" && req.method === "POST") {
       if (booting) return json({ error: "wallets are still syncing" }, 409);
       if (busy) return json({ error: "another transaction is in flight" }, 409);
-      const body = (await req.json()) as { wallet: number; side: "YES" | "NO"; size: number };
+      const body = (await req.json()) as { wallet: number; side: "YES" | "NO"; size: number; conditionId?: string };
       const w = wallets[body.wallet];
       if (!w) return json({ error: `wallet ${body.wallet} is not ready` }, 400);
       if (!Number.isFinite(body.size) || body.size <= 0) return json({ error: "size must be positive" }, 400);
@@ -341,9 +359,10 @@ Bun.serve({
         const side = body.side === "NO" ? false : true;
         const size = BigInt(Math.floor(body.size));
         const c = Contract.pureCircuits.position_commitment(side, size, blind);
+        const cond = body.conditionId ?? CONDITION_ID;
 
         say(`wallet ${body.wallet} opening ${body.side} ${body.size}`);
-        const tx = await w.contract.callTx.open_position(hex32(CONDITION_ID), c);
+        const tx = await w.contract.callTx.open_position(hex32(cond), c);
         const block = Number(tx.public.blockHeight);
 
         const pos: Position = {
@@ -357,6 +376,7 @@ Bun.serve({
           openedBlock: block,
           openedAt: new Date().toISOString(),
           status: "open",
+          conditionId: cond,
         };
         positions.push(pos);
         say(`position ${pos.id} open, commitment ${pos.commitment.slice(0, 18)}... block ${block}`);
@@ -391,7 +411,7 @@ Bun.serve({
         const c = Contract.pureCircuits.position_commitment(side, size, blind);
 
         say(`wallet ${body.wallet} opening the other side of position ${target.id}`);
-        const openTx = await w.contract.callTx.open_position(hex32(CONDITION_ID), c);
+        const openTx = await w.contract.callTx.open_position(hex32(target.conditionId ?? CONDITION_ID), c);
 
         const counter: Position = {
           id: nextId++,
@@ -404,6 +424,7 @@ Bun.serve({
           openedBlock: Number(openTx.public.blockHeight),
           openedAt: new Date().toISOString(),
           status: "open",
+          conditionId: target.conditionId ?? CONDITION_ID,
         };
         positions.push(counter);
 
@@ -456,7 +477,7 @@ Bun.serve({
         say(`covering position ${pos.id} on Polygon (slot ${slot})`);
         const settlement = await settleOnPolygon({
           epoch: slot,
-          conditionId: CONDITION_ID,
+          conditionId: pos.conditionId ?? CONDITION_ID,
           side: pos.side,
           size: BigInt(pos.size),
           crossed: 0n,

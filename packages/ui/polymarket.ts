@@ -98,3 +98,42 @@ export function describeOrder(order: Order | null, residual: Residual): string {
     `crossed: ${residual.crossed} never reached the market`,
   ].join("\n");
 }
+
+
+/**
+ * A handful of live markets for the front page.
+ *
+ * Ordered by 24h volume, because a dark pool is only interesting where there is
+ * something to hide inside. Only markets with two outcomes and real clob token
+ * ids are usable here.
+ */
+export async function listMarkets(limit = 12): Promise<Market[]> {
+  const url = `${GAMMA}/markets?limit=${limit * 3}&closed=false&active=true` +
+    `&order=volume24hr&ascending=false`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`gamma ${res.status} listing markets`);
+  const rows = (await res.json()) as any[];
+
+  const out: Market[] = [];
+  for (const m of rows) {
+    try {
+      const tokenIds = JSON.parse(m.clobTokenIds ?? "[]") as string[];
+      const prices = (JSON.parse(m.outcomePrices ?? "[]") as string[]).map(Number);
+      if (tokenIds.length < 2 || prices.length < 2) continue;
+      if (!m.conditionId) continue;
+      out.push({
+        conditionId: m.conditionId,
+        slug: m.slug,
+        question: m.question,
+        yesTokenId: tokenIds[0],
+        noTokenId: tokenIds[1],
+        yesPrice: prices[0],
+        noPrice: prices[1],
+      });
+      if (out.length >= limit) break;
+    } catch {
+      // a malformed row is not worth failing the whole list for
+    }
+  }
+  return out;
+}

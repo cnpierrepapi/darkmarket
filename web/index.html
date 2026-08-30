@@ -81,6 +81,15 @@
     height:200px;overflow:auto;white-space:pre-wrap}
   .err{color:var(--no);font-size:12.5px;margin-top:9px;font-family:ui-monospace,monospace}
   .note{color:var(--dim);font-size:12.5px;margin-top:10px}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+  .mcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;
+    cursor:pointer;display:flex;flex-direction:column;gap:10px}
+  .mcard:hover{border-color:var(--acc)}
+  .mcard.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+  .mq{font-size:14.5px;font-weight:600;line-height:1.35}
+  .mbar{height:6px;border-radius:99px;overflow:hidden;display:flex;background:#0f131b}
+  .mbar .y{background:var(--yes)} .mbar .n{background:var(--no)}
+  .mrow{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:12.5px}
   .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
   @media(max-width:1000px){.three{grid-template-columns:1fr}}
 </style>
@@ -92,7 +101,8 @@
     <span class="badge" id="netTag">-</span>
     <span class="badge" id="walletTag">-</span>
     <nav>
-      <button class="on" data-t="trade">Trade</button>
+      <button class="on" data-t="markets">Markets</button>
+      <button data-t="trade">Trade</button>
       <button data-t="book">Positions</button>
       <button data-t="chain">What the chain sees</button>
     </nav>
@@ -100,7 +110,15 @@
 </header>
 
 <main>
-  <section class="tab on" id="t-trade">
+  <section class="tab on" id="t-markets">
+    <p class="lede">
+      Live Polymarket markets. Pick one and your position on it is sealed on
+      Midnight instead of sitting in the public book.
+    </p>
+    <div class="mgrid" id="mgrid"><div class="empty">loading markets...</div></div>
+  </section>
+
+  <section class="tab" id="t-trade">
     <div class="cols">
       <div class="card">
         <h2>Open a position</h2>
@@ -123,7 +141,9 @@
 
       <div>
         <div class="card">
-          <p class="q" id="q">loading market...</p>
+          <div class="mrow" style="margin-bottom:8px"><span class="k">trading</span>
+            <span class="v"><a href="#" id="backToMarkets">change market</a></span></div>
+          <p class="q" id="q">pick a market first</p>
           <div class="odds">
             <div class="odd y"><div class="side">YES</div><div class="pct" id="oy">-</div></div>
             <div class="odd n"><div class="side">NO</div><div class="pct" id="on_">-</div></div>
@@ -194,17 +214,72 @@ var API = (window.DARKMARKET_API || "").replace(/\/$/, "");
 function $(id){ return document.getElementById(id); }
 var side = "YES";
 var walletCount = 5;
+var markets = [];
+var selected = null;
 
-var tabs = document.querySelectorAll("nav button");
-for (var i=0;i<tabs.length;i++){
-  tabs[i].onclick = (function(b){ return function(){
-    for (var j=0;j<tabs.length;j++) tabs[j].classList.remove("on");
-    b.classList.add("on");
-    var secs = document.querySelectorAll(".tab");
-    for (var j=0;j<secs.length;j++) secs[j].classList.remove("on");
-    $("t-" + b.dataset.t).classList.add("on");
-  };})(tabs[i]);
+function showTab(name){
+  var tabs = document.querySelectorAll("nav button");
+  for (var j=0;j<tabs.length;j++){
+    tabs[j].classList.toggle("on", tabs[j].dataset.t === name);
+  }
+  var secs = document.querySelectorAll(".tab");
+  for (var j=0;j<secs.length;j++) secs[j].classList.remove("on");
+  document.getElementById("t-" + name).classList.add("on");
 }
+
+// Polymarket quotes each outcome as a probability, and the pair sums to one.
+// Rounding them separately can show 55 and 46, so round the first and take the
+// remainder for the second.
+function pctPair(yes, no){
+  var total = (yes + no) || 1;
+  var y = Math.round((yes / total) * 100);
+  return [y, 100 - y];
+}
+
+async function loadMarkets(){
+  try{
+    var r = await api("/api/markets");
+    markets = r.markets || [];
+    if (!markets.length){
+      $("mgrid").innerHTML = '<div class="empty">' + (r.error || "no markets available") + '</div>';
+      return;
+    }
+    $("mgrid").innerHTML = markets.map(function(m, i){
+      var p = pctPair(m.yesPrice, m.noPrice);
+      return '<div class="mcard' + (selected && selected.conditionId === m.conditionId ? " sel" : "") +
+        '" onclick="pickMarket(' + i + ')">' +
+        '<div class="mq">' + m.question + '</div>' +
+        '<div class="mbar"><div class="y" style="flex:' + p[0] + '"></div>' +
+        '<div class="n" style="flex:' + p[1] + '"></div></div>' +
+        '<div class="mrow"><span style="color:var(--yes)">YES ' + p[0] + '%</span>' +
+        '<span style="color:var(--no)">NO ' + p[1] + '%</span></div>' +
+        '</div>';
+    }).join("");
+  } catch(e){
+    $("mgrid").innerHTML = '<div class="empty">could not reach the backend</div>';
+  }
+}
+
+window.pickMarket = function(i){
+  selected = markets[i];
+  paintSelected();
+  showTab("trade");
+};
+
+function paintSelected(){
+  if (!selected) return;
+  var p = pctPair(selected.yesPrice, selected.noPrice);
+  $("q").textContent = selected.question;
+  $("oy").textContent = p[0] + "%";
+  $("on_").textContent = p[1] + "%";
+  $("cond").textContent = selected.conditionId.slice(0,12) + "..." + selected.conditionId.slice(-6);
+}
+
+var navButtons = document.querySelectorAll("nav button");
+for (var i=0;i<navButtons.length;i++){
+  navButtons[i].onclick = (function(b){ return function(){ showTab(b.dataset.t); }; })(navButtons[i]);
+}
+$("backToMarkets").onclick = function(e){ e.preventDefault(); showTab("markets"); };
 
 $("sYES").onclick = function(){ side="YES"; $("sYES").classList.add("sel"); $("sNO").classList.remove("sel"); };
 $("sNO").onclick  = function(){ side="NO";  $("sNO").classList.add("sel");  $("sYES").classList.remove("sel"); };
@@ -272,11 +347,8 @@ async function refresh(){
       }
     }
 
-    if (s.market){
-      $("q").textContent = s.market.question || "";
-      $("oy").textContent = Math.round(s.market.yesPrice*100) + "¢";
-      $("on_").textContent = Math.round(s.market.noPrice*100) + "¢";
-    }
+    if (!selected && s.market) { selected = s.market; }
+    paintSelected();
 
     $("cOpened").textContent = s.chain.opened;
     $("cMatched").textContent = s.chain.matched;
@@ -311,10 +383,12 @@ $("open").onclick = async function(){
   $("openErr").textContent = "";
   $("open").disabled = true; $("open").textContent = "proving...";
   try{
+    if (!selected){ $("openErr").textContent = "pick a market first"; refresh(); return; }
     var r = await post("/api/open", {
       wallet: Number($("wallet").value),
       side: side,
-      size: Number($("size").value)
+      size: Number($("size").value),
+      conditionId: selected.conditionId
     });
     if (r.error) $("openErr").textContent = r.error;
   } catch(e){ $("openErr").textContent = String(e); }
@@ -342,7 +416,9 @@ window.coverIt = async function(id){
 };
 
 refresh();
+loadMarkets();
 setInterval(refresh, 4000);
+setInterval(loadMarkets, 60000);
 </script>
 </body>
 </html>
